@@ -1,0 +1,10 @@
+{
+  "name": "gerra",
+  "version": "0.0.0",
+  "description": "Rewrite your backend with AI, and prove nothing broke.",
+  "type": "module",
+  "license": "MIT",
+  "bin": { "gerra": "dist/index.js" },
+  "scripts": { "build": "tsc -p tsconfig.json", "typecheck": "tsc -p tsconfig.json --noEmit" },
+  "dependencies": { "@gerra/core": "workspace:*" }
+}

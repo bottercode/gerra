@@ -1,0 +1,6 @@
+{
+  "mask": { "fields": ["email"] },
+  "routes": {
+    "POST /cart/price": { "replay": true }
+  }
+}
