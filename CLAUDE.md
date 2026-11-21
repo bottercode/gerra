@@ -34,6 +34,9 @@ packages/
   mcp/    MCP server for agents (uses cli's `gerra/api`)
 skills/
   gerra-rewrite/SKILL.md   agent workflow: rewrite route by route until gerra replay passes
+examples/
+  express-pricing/   small Express app + a deliberately imperfect rewrite
+  json-server/       launch demo: json-server ported to Go (go/ is its own Go module)
 docs/
   PLAN.md   roadmap + milestone checklist (source of truth for "what next")
 ```

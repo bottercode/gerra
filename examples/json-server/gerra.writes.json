@@ -1,0 +1,10 @@
+{
+  "compare": {
+    "headers": ["content-length", "access-control-allow-origin", "access-control-allow-methods", "access-control-allow-headers"]
+  },
+  "routes": {
+    "POST /posts": { "replay": true, "ignore": ["$.id"] },
+    "POST /comments": { "replay": true, "ignore": ["$.id"] },
+    "GET /posts": { "ignore": ["$.data[*].id"] }
+  }
+}

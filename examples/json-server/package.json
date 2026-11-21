@@ -1,0 +1,17 @@
+{
+  "name": "@gerra/example-json-server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "gerra's launch demo: json-server (Node) ported to Go, verified by replaying recorded traffic.",
+  "type": "module",
+  "scripts": {
+    "seed": "node seed.mjs",
+    "start": "json-server --port 3000 data/db.json",
+    "start:go": "cd go && go run . --port 4000 ../data/db-go.json",
+    "test:go": "cd go && go test ./...",
+    "bench": "./bench.sh"
+  },
+  "dependencies": {
+    "json-server": "1.0.0-beta.15"
+  }
+}

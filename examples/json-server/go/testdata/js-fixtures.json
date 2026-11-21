@@ -1,0 +1,738 @@
+{
+  "parseErrors": [
+    {
+      "input": "",
+      "error": "Unexpected end of JSON input"
+    },
+    {
+      "input": " ",
+      "error": "Unexpected end of JSON input"
+    },
+    {
+      "input": "x",
+      "error": "Unexpected token 'x', \"x\" is not valid JSON"
+    },
+    {
+      "input": "not json",
+      "error": "Unexpected token 'o', \"not json\" is not valid JSON"
+    },
+    {
+      "input": "{bad",
+      "error": "Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+    },
+    {
+      "input": "{",
+      "error": "Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+    },
+    {
+      "input": "[",
+      "error": "Unexpected end of JSON input"
+    },
+    {
+      "input": "[1,]",
+      "error": "Unexpected token ']', \"[1,]\" is not valid JSON"
+    },
+    {
+      "input": "[1 2]",
+      "error": "Expected ',' or ']' after array element in JSON at position 3 (line 1 column 4)"
+    },
+    {
+      "input": "{\"a\" 1}",
+      "error": "Expected ':' after property name in JSON at position 5 (line 1 column 6)"
+    },
+    {
+      "input": "{\"a\":1,}",
+      "error": "Expected double-quoted property name in JSON at position 7 (line 1 column 8)"
+    },
+    {
+      "input": "{\"a\":1 \"b\":2}",
+      "error": "Expected ',' or '}' after property value in JSON at position 7 (line 1 column 8)"
+    },
+    {
+      "input": "{'a':1}",
+      "error": "Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+    },
+    {
+      "input": "\"abc",
+      "error": "Unterminated string in JSON at position 4 (line 1 column 5)"
+    },
+    {
+      "input": "\"a\u0001\"",
+      "error": "Bad control character in string literal in JSON at position 2 (line 1 column 3)"
+    },
+    {
+      "input": "\"\\x\"",
+      "error": "Bad escaped character in JSON at position 2 (line 1 column 3)"
+    },
+    {
+      "input": "\"\\u12G4\"",
+      "error": "Bad Unicode escape in JSON at position 5 (line 1 column 6)"
+    },
+    {
+      "input": "-",
+      "error": "No number after minus sign in JSON at position 1 (line 1 column 2)"
+    },
+    {
+      "input": "-a",
+      "error": "No number after minus sign in JSON at position 1 (line 1 column 2)"
+    },
+    {
+      "input": "1.",
+      "error": "Unterminated fractional number in JSON at position 2 (line 1 column 3)"
+    },
+    {
+      "input": "1.e5",
+      "error": "Unterminated fractional number in JSON at position 2 (line 1 column 3)"
+    },
+    {
+      "input": "1e",
+      "error": "Exponent part is missing a number in JSON at position 2 (line 1 column 3)"
+    },
+    {
+      "input": "1e+",
+      "error": "Exponent part is missing a number in JSON at position 3 (line 1 column 4)"
+    },
+    {
+      "input": "01",
+      "error": "Unexpected number in JSON at position 1 (line 1 column 2)"
+    },
+    {
+      "input": "[01]",
+      "error": "Unexpected number in JSON at position 2 (line 1 column 3)"
+    },
+    {
+      "input": "tru",
+      "error": "Unexpected end of JSON input"
+    },
+    {
+      "input": "trux",
+      "error": "Unexpected token 'x', \"trux\" is not valid JSON"
+    },
+    {
+      "input": "nul",
+      "error": "Unexpected end of JSON input"
+    },
+    {
+      "input": "nulx",
+      "error": "Unexpected token 'x', \"nulx\" is not valid JSON"
+    },
+    {
+      "input": "fals",
+      "error": "Unexpected end of JSON input"
+    },
+    {
+      "input": "{\"a\":tru}",
+      "error": "Unexpected token '}', \"{\"a\":tru}\" is not valid JSON"
+    },
+    {
+      "input": "undefined",
+      "error": "\"undefined\" is not valid JSON"
+    },
+    {
+      "input": "NaN",
+      "error": "\"NaN\" is not valid JSON"
+    },
+    {
+      "input": "Infinity",
+      "error": "\"Infinity\" is not valid JSON"
+    },
+    {
+      "input": "[object Object]",
+      "error": "\"[object Object]\" is not valid JSON"
+    },
+    {
+      "input": "{\"title\": \"hello\", \"views\": 12,}",
+      "error": "Expected double-quoted property name in JSON at position 31 (line 1 column 32)"
+    },
+    {
+      "input": "{\"title\": \"hello\", \"views\": 12, oops}",
+      "error": "Expected double-quoted property name in JSON at position 32 (line 1 column 33)"
+    },
+    {
+      "input": "this string is definitely longer than twenty-one characters",
+      "error": "Unexpected token 'h', \"this string\"... is not valid JSON"
+    },
+    {
+      "input": "{\"a\":1}\n{\"b\":2}",
+      "error": "Unexpected non-whitespace character after JSON at position 8 (line 2 column 1)"
+    },
+    {
+      "input": "[1,\n2,\n x]",
+      "error": "Unexpected token 'x', \"[1,\n2,\n x]\" is not valid JSON"
+    },
+    {
+      "input": "{\"name\": \"Zoë\", x}",
+      "error": "Expected double-quoted property name in JSON at position 16 (line 1 column 17)"
+    },
+    {
+      "input": "{\"emoji\": \"😀\" x}",
+      "error": "Expected ',' or '}' after property value in JSON at position 15 (line 1 column 16)"
+    },
+    {
+      "input": "1 2",
+      "error": "Unexpected non-whitespace character after JSON at position 2 (line 1 column 3)"
+    },
+    {
+      "input": "\"a\" \"b\"",
+      "error": "Unexpected non-whitespace character after JSON at position 4 (line 1 column 5)"
+    },
+    {
+      "input": "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, x]",
+      "error": "Unexpected token 'x', ...\"8, 9, 10, x]\" is not valid JSON"
+    },
+    {
+      "input": "{\"a\":\"b\"}x",
+      "error": "Unexpected non-whitespace character after JSON at position 9 (line 1 column 10)"
+    },
+    {
+      "input": "[\"a\" \"b\"]",
+      "error": "Expected ',' or ']' after array element in JSON at position 5 (line 1 column 6)"
+    },
+    {
+      "input": "{\"a\":1}}",
+      "error": "Unexpected non-whitespace character after JSON at position 7 (line 1 column 8)"
+    },
+    {
+      "input": "[]]",
+      "error": "Unexpected non-whitespace character after JSON at position 2 (line 1 column 3)"
+    },
+    {
+      "input": "nulll",
+      "error": "Unexpected non-whitespace character after JSON at position 4 (line 1 column 5)"
+    }
+  ],
+  "numbers": [
+    {
+      "bits": "0000000000000000",
+      "string": "0"
+    },
+    {
+      "bits": "0000000000000080",
+      "string": "0"
+    },
+    {
+      "bits": "000000000000f03f",
+      "string": "1"
+    },
+    {
+      "bits": "000000000000f0bf",
+      "string": "-1"
+    },
+    {
+      "bits": "9a9999999999b93f",
+      "string": "0.1"
+    },
+    {
+      "bits": "000000000000e03f",
+      "string": "0.5"
+    },
+    {
+      "bits": "000000000000f83f",
+      "string": "1.5"
+    },
+    {
+      "bits": "0000000000001240",
+      "string": "4.5"
+    },
+    {
+      "bits": "0000000000005940",
+      "string": "100"
+    },
+    {
+      "bits": "50efe2d6e41a4b44",
+      "string": "1e+21"
+    },
+    {
+      "bits": "408cb5781daf1544",
+      "string": "100000000000000000000"
+    },
+    {
+      "bits": "dabc047e3ac51a44",
+      "string": "123456789012345680000"
+    },
+    {
+      "bits": "76830df4f521843e",
+      "string": "1.5e-7"
+    },
+    {
+      "bits": "8dedb5a0f7c6b03e",
+      "string": "0.000001"
+    },
+    {
+      "bits": "48afbc9af2d77a3e",
+      "string": "1e-7"
+    },
+    {
+      "bits": "555555555555d53f",
+      "string": "0.3333333333333333"
+    },
+    {
+      "bits": "555555555555e53f",
+      "string": "0.6666666666666666"
+    },
+    {
+      "bits": "0000000000c04d40",
+      "string": "59.5"
+    },
+    {
+      "bits": "1f85eb51b8ee5640",
+      "string": "91.73"
+    },
+    {
+      "bits": "52b81e85ebd12240",
+      "string": "9.41"
+    },
+    {
+      "bits": "9c7500883ce4377e",
+      "string": "1e+300"
+    },
+    {
+      "bits": "59f3f8c21f6ea581",
+      "string": "-1e-300"
+    },
+    {
+      "bits": "0100000000000000",
+      "string": "5e-324"
+    },
+    {
+      "bits": "ffffffffffffef7f",
+      "string": "1.7976931348623157e+308"
+    },
+    {
+      "bits": "77be9f1a2fdd5e40",
+      "string": "123.456"
+    },
+    {
+      "bits": "0000000000004043",
+      "string": "9007199254740992"
+    },
+    {
+      "bits": "343333333333d33f",
+      "string": "0.30000000000000004"
+    },
+    {
+      "bits": "0000000000004043",
+      "string": "9007199254740992"
+    }
+  ],
+  "numberStrings": [
+    {
+      "input": "",
+      "number": "0"
+    },
+    {
+      "input": " ",
+      "number": "0"
+    },
+    {
+      "input": "12",
+      "number": "12"
+    },
+    {
+      "input": " 12 ",
+      "number": "12"
+    },
+    {
+      "input": "1e3",
+      "number": "1000"
+    },
+    {
+      "input": "1.",
+      "number": "1"
+    },
+    {
+      "input": ".5",
+      "number": "0.5"
+    },
+    {
+      "input": "-.5",
+      "number": "-0.5"
+    },
+    {
+      "input": "+3",
+      "number": "3"
+    },
+    {
+      "input": "0x1F",
+      "number": "31"
+    },
+    {
+      "input": "0b101",
+      "number": "5"
+    },
+    {
+      "input": "0o17",
+      "number": "15"
+    },
+    {
+      "input": "-0x10",
+      "number": "NaN"
+    },
+    {
+      "input": "Infinity",
+      "number": "Infinity"
+    },
+    {
+      "input": "-Infinity",
+      "number": "-Infinity"
+    },
+    {
+      "input": "1_000",
+      "number": "NaN"
+    },
+    {
+      "input": "12px",
+      "number": "NaN"
+    },
+    {
+      "input": "1e",
+      "number": "NaN"
+    },
+    {
+      "input": " 12 ",
+      "number": "12"
+    },
+    {
+      "input": "NaN",
+      "number": "NaN"
+    },
+    {
+      "input": "00012",
+      "number": "12"
+    },
+    {
+      "input": "1e400",
+      "number": "Infinity"
+    },
+    {
+      "input": "-0",
+      "number": "0"
+    },
+    {
+      "input": "3.14",
+      "number": "3.14"
+    },
+    {
+      "input": ".",
+      "number": "NaN"
+    },
+    {
+      "input": "e5",
+      "number": "NaN"
+    },
+    {
+      "input": "0x",
+      "number": "NaN"
+    },
+    {
+      "input": "true",
+      "number": "NaN"
+    }
+  ],
+  "sortedWords": [
+    "",
+    " x",
+    "_x",
+    "-x",
+    "😀",
+    "1",
+    "10",
+    "9",
+    "a b",
+    "a_b",
+    "a-b",
+    "a.b",
+    "a😀",
+    "ab",
+    "ae",
+    "æ",
+    "api",
+    "API",
+    "apple",
+    "Apple",
+    "APPLE",
+    "banana",
+    "Banana",
+    "edition",
+    "Edition",
+    "édition",
+    "hello world",
+    "Hello World",
+    "hello-world",
+    "ivar",
+    "Ívar",
+    "naive",
+    "naïve",
+    "o",
+    "ø",
+    "ss",
+    "ß",
+    "uber",
+    "Ubér",
+    "über",
+    "x",
+    "zebra",
+    "Zebra",
+    "zoe",
+    "Zoë",
+    "中文",
+    "日本"
+  ],
+  "inflection": [
+    {
+      "word": "post",
+      "plural": "posts",
+      "singular": "post"
+    },
+    {
+      "word": "posts",
+      "plural": "posts",
+      "singular": "post"
+    },
+    {
+      "word": "comment",
+      "plural": "comments",
+      "singular": "comment"
+    },
+    {
+      "word": "comments",
+      "plural": "comments",
+      "singular": "comment"
+    },
+    {
+      "word": "user",
+      "plural": "users",
+      "singular": "user"
+    },
+    {
+      "word": "users",
+      "plural": "users",
+      "singular": "user"
+    },
+    {
+      "word": "profile",
+      "plural": "profiles",
+      "singular": "profile"
+    },
+    {
+      "word": "person",
+      "plural": "people",
+      "singular": "person"
+    },
+    {
+      "word": "people",
+      "plural": "people",
+      "singular": "person"
+    },
+    {
+      "word": "category",
+      "plural": "categories",
+      "singular": "category"
+    },
+    {
+      "word": "categories",
+      "plural": "categories",
+      "singular": "category"
+    },
+    {
+      "word": "status",
+      "plural": "statuses",
+      "singular": "status"
+    },
+    {
+      "word": "statuses",
+      "plural": "statuses",
+      "singular": "status"
+    },
+    {
+      "word": "child",
+      "plural": "children",
+      "singular": "child"
+    },
+    {
+      "word": "children",
+      "plural": "children",
+      "singular": "child"
+    },
+    {
+      "word": "datum",
+      "plural": "data",
+      "singular": "datum"
+    },
+    {
+      "word": "data",
+      "plural": "data",
+      "singular": "datum"
+    },
+    {
+      "word": "news",
+      "plural": "news",
+      "singular": "news"
+    },
+    {
+      "word": "series",
+      "plural": "series",
+      "singular": "series"
+    },
+    {
+      "word": "analysis",
+      "plural": "analyses",
+      "singular": "analysis"
+    },
+    {
+      "word": "analyses",
+      "plural": "analyses",
+      "singular": "analyasis"
+    },
+    {
+      "word": "box",
+      "plural": "boxes",
+      "singular": "box"
+    },
+    {
+      "word": "boxes",
+      "plural": "boxes",
+      "singular": "box"
+    },
+    {
+      "word": "quiz",
+      "plural": "quizzes",
+      "singular": "quiz"
+    },
+    {
+      "word": "quizzes",
+      "plural": "quizzes",
+      "singular": "quiz"
+    },
+    {
+      "word": "mouse",
+      "plural": "mice",
+      "singular": "mouse"
+    },
+    {
+      "word": "mice",
+      "plural": "mice",
+      "singular": "mouse"
+    },
+    {
+      "word": "ox",
+      "plural": "oxen",
+      "singular": "ox"
+    },
+    {
+      "word": "oxen",
+      "plural": "oxen",
+      "singular": "ox"
+    },
+    {
+      "word": "matrix",
+      "plural": "matrices",
+      "singular": "matrix"
+    },
+    {
+      "word": "matrices",
+      "plural": "matrices",
+      "singular": "matrix"
+    },
+    {
+      "word": "index",
+      "plural": "indices",
+      "singular": "index"
+    },
+    {
+      "word": "indices",
+      "plural": "indices",
+      "singular": "index"
+    },
+    {
+      "word": "wife",
+      "plural": "wives",
+      "singular": "wife"
+    },
+    {
+      "word": "wives",
+      "plural": "wives",
+      "singular": "wife"
+    },
+    {
+      "word": "leaf",
+      "plural": "leafs",
+      "singular": "leaf"
+    },
+    {
+      "word": "leaves",
+      "plural": "leaves",
+      "singular": "leave"
+    },
+    {
+      "word": "tag",
+      "plural": "tags",
+      "singular": "tag"
+    },
+    {
+      "word": "tags",
+      "plural": "tags",
+      "singular": "tag"
+    },
+    {
+      "word": "Photo",
+      "plural": "Photos",
+      "singular": "Photo"
+    },
+    {
+      "word": "Photos",
+      "plural": "Photos",
+      "singular": "Photo"
+    },
+    {
+      "word": "bus",
+      "plural": "buses",
+      "singular": "bus"
+    },
+    {
+      "word": "buses",
+      "plural": "buses",
+      "singular": "bus"
+    },
+    {
+      "word": "address",
+      "plural": "addresses",
+      "singular": "address"
+    },
+    {
+      "word": "addresses",
+      "plural": "addresses",
+      "singular": "address"
+    },
+    {
+      "word": "equipment",
+      "plural": "equipment",
+      "singular": "equipment"
+    },
+    {
+      "word": "sheep",
+      "plural": "sheep",
+      "singular": "sheep"
+    },
+    {
+      "word": "fish",
+      "plural": "fishes",
+      "singular": "fish"
+    },
+    {
+      "word": "todo",
+      "plural": "todos",
+      "singular": "todo"
+    },
+    {
+      "word": "todos",
+      "plural": "todos",
+      "singular": "todo"
+    },
+    {
+      "word": "",
+      "plural": "s",
+      "singular": ""
+    }
+  ]
+}

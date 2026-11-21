@@ -48,8 +48,10 @@ Goal for the first public launch (end of M7): port a popular open-source Node se
 - [x] `gerra replay/diff --route`, `gerra diff --exchange <id>` for one difference in full
 
 ### M7 — launch demo
-- [ ] Pick a popular OSS Node service, record realistic traffic, port to Go with the agent loop
-- [ ] Benchmark + parity numbers, GIF, README, launch post
+- [x] Pick a popular OSS Node service, record realistic traffic, port to Go with the agent loop (`examples/json-server`: json-server 1.0.0-beta.15 → Go, 2088 of 2089 recorded exchanges identical)
+- [x] Benchmark + parity numbers (`examples/json-server/bench.sh`, `verify.sh`), README
+- [ ] GIF of the record → replay → diff loop on the demo
+- [ ] Launch post (draft in `docs/launch-post.md`); publish
 
 ### Later (not before M7)
 - Node SDK to capture DB queries and outbound HTTP (for side-effect isolation and deeper diffs)
@@ -96,3 +98,10 @@ Goal for the first public launch (end of M7): port a popular open-source Node se
 - 2026-11-21 — MCP tools never allow production targets (no `allow-prod` argument), and they replay writes only when the agent passes `unsafe_methods` explicitly. Tool failures come back as `isError` results the agent can read, not protocol errors.
 - 2026-11-21 — Learning noise with `--original` on a subset of routes (`--route`) keeps what was learned earlier for the other routes, so an agent working route by route doesn't erase noise.
 - 2026-11-21 — The skill lives in `skills/gerra-rewrite/SKILL.md` and works with the CLI or the MCP tools. Its central rule: never make a replay pass by hiding a difference. Copy the original's bugs and report them; changing behavior is the user's call.
+- 2026-11-21 — Launch demo target: **json-server** (typicode, ~70k★), pinned to `1.0.0-beta.15`, what `npx json-server` installs. It's widely known, small enough to port in one sitting, almost entirely deterministic HTTP, and its writes are safe to replay on a re-seeded file. RealWorld was the alternative; it was rejected because many Go versions already exist, so a port would look copied. The port lives in `examples/json-server/go` as its own Go module (`golang.org/x/text` for collation is its only dependency; gerra itself still has none).
+- 2026-11-21 — The port was done by Claude Code following `skills/gerra-rewrite/SKILL.md` with the CLI (`replay --route`, `diff --exchange`), not via the MCP server, which wasn't connected to that session. Three tapes: 2000 reads (a weighted frontend mix), 28 writes, 61 edge cases. They're regenerated deterministically by `traffic.mjs`, not committed (the reads tape is 14.6 MB).
+- 2026-11-21 — The parity claim covers status, `content-type`, `content-length`, the CORS headers and the body (`examples/json-server/gerra.config.json`). Comparing `content-length` makes it byte-level, not just structurally equal JSON. The only ignore rule is `$.id` on created items, which json-server generates randomly. One difference stays open: Go's `net/http` answers a malformed `%zz` path escape itself, before any handler runs.
+- 2026-11-21 — Benchmark numbers (Apple M2, everything on one machine, recorded GET mix, 32 connections, median of 3 × 10 s): json-server 1,963 req/s, p50 15.1 ms, 257 MB. The Go port does 12,588 req/s (6.4×), p50 1.1 ms, 30 MB, or 4,153 req/s (2.1×) with `GOMAXPROCS=1`. Report both: Node uses one core.
+- 2026-11-21 — Two gerra gaps the demo exposed, for later:
+  - `record` appends to an existing tape, so re-recording silently mixes runs. It could refuse, or take `--overwrite`.
+  - Routes in reports use the raw path, so `GET /po%73ts/%32` isn't grouped under `GET /posts/:id`.

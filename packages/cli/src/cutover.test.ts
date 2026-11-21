@@ -135,7 +135,8 @@ describe("startCutover", () => {
     for (let i = 0; i < 5; i++) users.push((await hit(`${co.url}/a`)).status);
     expect(users).toEqual([503, 503, 503, 503, 503]);
     await until(() => co.state().phase === "rolled_back");
-    expect(co.state().rollback?.reason).toMatch(/^candidate error rate 100% > 1%/);
+    // A 5xx counts once the primary has been asked too, so the last comparison may still be in flight.
+    expect(co.state().rollback?.reason).toMatch(/^candidate error rate (80|100)% > 1% \(\d\/5\)/);
     expect((await hit(`${co.url}/a`)).status).toBe(200);
   });
 

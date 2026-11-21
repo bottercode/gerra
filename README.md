@@ -17,6 +17,16 @@ gerra cutover --primary :3000 --candidate :4000 --hold 10m        # switch 1% �
 
 Works at the HTTP layer, so the old and new services can be in any language.
 
+## Demo: json-server, ported to Go
+
+[examples/json-server](examples/json-server) is [json-server](https://github.com/typicode/json-server) rewritten in Go by an agent, one route at a time, using the gerra workflow:
+
+- **2089 recorded requests replayed:** 2088 identical, down to `content-length`, CORS headers and V8's error messages.
+- **The one difference is documented:** a malformed URL escape that Go's HTTP server rejects before the app sees it.
+- **Faster:** 6.4× the throughput on the recorded traffic (2.1× on a single core), p50 15 ms → 1.1 ms, 257 MB → 30 MB.
+
+`./verify.sh` and `./bench.sh` in that folder reproduce it.
+
 ## Usable today: record
 
 ```bash
@@ -99,7 +109,7 @@ Try all of this on the example app and its deliberately imperfect rewrite in [ex
 
 ## Status
 
-Early development. Every command works: `record`, `tapes`, `replay` (with noise filtering), `diff`, `shadow` and `cutover`. So is the agent loop (skill and MCP server). Next is the launch demo: porting a real open-source service with it. See [docs/PLAN.md](docs/PLAN.md).
+Early development. Every command works: `record`, `tapes`, `replay` (with noise filtering), `diff`, `shadow` and `cutover`. So does the agent loop (skill and MCP server), and the json-server demo above was built with it. See [docs/PLAN.md](docs/PLAN.md).
 
 ## License
 

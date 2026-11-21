@@ -1,0 +1,5 @@
+{
+  "compare": {
+    "headers": ["content-length", "access-control-allow-origin", "access-control-allow-methods", "access-control-allow-headers"]
+  }
+}
