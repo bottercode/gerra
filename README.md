@@ -17,6 +17,17 @@ gerra cutover --primary :3000 --candidate :4000 --hold 10m        # switch 1% â†
 
 Works at the HTTP layer, so the old and new services can be in any language.
 
+## Install
+
+Requires Node 24+.
+
+```bash
+npx @gerra/cli --help            # run without installing
+npm install -g @gerra/cli        # or install the `gerra` command
+```
+
+The examples below use `pnpm gerra` because they run from a clone of this repo; with npm, use `gerra` (or `npx @gerra/cli`) instead.
+
 ## Demo: json-server, ported to Go
 
 [examples/json-server](examples/json-server) is [json-server](https://github.com/typicode/json-server) rewritten in Go by an agent, one route at a time, using the gerra workflow:
@@ -100,7 +111,7 @@ pnpm gerra diff checkout --exchange ex_3f445aac                          # one d
 - **MCP server:** gives agents `gerra_list_tapes`, `gerra_get_exchanges`, `gerra_replay`, `gerra_diff` and `gerra_explain_exchange`. Run it from the project that holds `.gerra/`:
 
   ```bash
-  claude mcp add gerra -- node /path/to/gerra/packages/mcp/dist/index.js --root "$PWD"
+  claude mcp add gerra -- npx -y @gerra/mcp --root "$PWD"
   ```
 
   The MCP tools only replay against local or internal targets.
