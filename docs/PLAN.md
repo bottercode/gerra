@@ -1,6 +1,6 @@
 # gerra — plan
 
-**Current milestone: M7 — launch demo** (M0, M1 done 2026-11-20; M2–M6 done 2026-11-21)
+**Current milestone: M7 — launch demo** (launch post left; M0, M1 done 2026-11-20; M2–M6 done 2026-11-21; M8 and the dashboard built 2026-11-22, waiting on the 0.2.0 publish)
 
 Goal for the first public launch (end of M7): port a popular open-source Node service to Go with an agent, verified by gerra, and post the result ("N× faster, X real requests replayed, byte-identical").
 
@@ -50,13 +50,24 @@ Goal for the first public launch (end of M7): port a popular open-source Node se
 ### M7 — launch demo
 - [x] Pick a popular OSS Node service, record realistic traffic, port to Go with the agent loop (`examples/json-server`: json-server 1.0.0-beta.15 → Go, 2088 of 2089 recorded exchanges identical)
 - [x] Benchmark + parity numbers (`examples/json-server/bench.sh`, `verify.sh`), README
-- [ ] Publish to npm: `gerra`, `gerra-core`, `gerra-mcp` 0.1.0 are packed and tested from tarballs; publishing waits on the name decision and an npm login
-- [ ] GIF of the record → replay → diff loop on the demo
+- [x] Publish to npm: `@gerra/cli`, `@gerra/core`, `@gerra/mcp` 0.1.0 (2026-11-21)
+- [x] GIF of the replay → diff → fix loop on the demo (`docs/demo.gif`, recorded with vhs)
 - [ ] Launch post (draft in `docs/launch-post.md`); publish
 
-### Later (not before M7)
-- Node SDK to capture DB queries and outbound HTTP (for side-effect isolation and deeper diffs)
-- Dashboard UI; hosted version (paid) — decide after launch
+### M8 — use it on a real service
+- [x] Stateful replay: `gerra replay --reset "<cmd>"` (or `"reset"` in the config) runs before anything is sent and stops the replay if it fails; when writes are replayed, requests go one at a time in recorded order
+- [x] Side effects: a one-header protocol (`x-gerra-effects`, docs/effects.md); record, replay and shadow ask for effects, store them in the tape (`response.effects`) and compare them in any order, only when both sides report them
+- [x] Node SDK (`packages/sdk-node`, `@gerra/sdk-node`): `node --import @gerra/sdk-node/register` reports `fetch` and `node:http` calls via diagnostics_channel; `instrumentQueries` (pg, mysql2), `instrumentSqlite` (node:sqlite) and `recordEffect` for the rest
+- [x] CI: `gerra replay/diff --markdown <file>`, and the repo is a GitHub Action (`action.yml`, docs/ci.md): start the candidate, replay, job summary, one PR comment per tape; CI runs it on express-pricing
+- [x] Second-language demo: `examples/python-todos`, Python (stdlib + SQLite) → Node, with writes, `--reset` and webhooks compared as effects; the one difference left is Python's banker's rounding
+- [ ] Publish 0.2.0 (`@gerra/cli`, `@gerra/core`, `@gerra/mcp`, and the new `@gerra/sdk-node`, `@gerra/dashboard`), then remove the "npm still has 0.1.0" note from the README
+
+### Dashboard
+- [x] `packages/dashboard` (`@gerra/dashboard`, bin `gerra-dashboard`; `gerra dashboard` runs it when installed): local, read-only web UI over `.gerra/`: tapes with a per-run trend, a run's differences by route, one exchange side by side with differences highlighted (bodies and effects), learned noise, live shadow/cutover sessions
+
+### Later
+- Stub outbound calls during replay with the recorded responses (effects are compared today, not replayed)
+- Hosted version (paid): decide after launch
 
 ## Decisions
 - 2026-11-20 — Name: **gerra** (repo folder name; working name, can change before launch).
@@ -108,3 +119,8 @@ Goal for the first public launch (end of M7): port a popular open-source Node se
   - `routeOf` percent-decodes path segments before grouping, so `GET /po%73ts/%32` is `GET /posts/:id`. Malformed escapes stay as written, and an encoded `/` stays `%2F`.
 - 2026-11-21 — npm packaging: three packages at 0.1.0, `@gerra/cli` (bin `gerra`, plus `@gerra/cli/api`), `@gerra/core` and `@gerra/mcp` (bin `gerra-mcp`). Each ships only `dist` without source maps, plus README and LICENSE. `pnpm pack` turns `workspace:*` into real versions, and installing the tarballs into an empty project works end to end. The unscoped name `gerra` is not available: npm rejected it as "too similar to existing package lerna" (typosquatting protection). Scoped names skip that check, so everything lives under an npm organization called `gerra`, and you run it as `npx @gerra/cli …`. Once installed, the command is still `gerra`. npm holds new versions for approval on npmjs.com (staged publishing) before they go live.
 - 2026-11-21 — The first publish attempt left an unscoped `gerra-core@0.1.0` on npm; it was unpublished the same day. Publishing needs the owner's passkey (2FA on writes), so it's done from an interactive terminal. New versions show up as `0.0.0-stage` placeholders for a few minutes before the real version is released.
+- 2026-11-22 — Side effects travel in a response header (`x-gerra-effects: <base64url JSON>`) rather than a side channel (file, socket), so they work across machines and languages with no setup, and the proxy strips them in one place. The cost: effects after the response headers are sent can't be reported, and the header is capped (SDK default 256 KB, gerra accepts 1 MB). Effects are compared only when both sides report them, so adding the SDK to the original first doesn't fail every replay, and in any order, because concurrent calls finish in any order. The tape format stays at v1: `effects` is an optional field older readers ignore.
+- 2026-11-22 — The SDK wraps a request's and response's own `emit` in its async context. `diagnostics_channel` gives the context at the start of a request, but listeners run in the emitter's context, so a handler that works in `req.on("end")` (as body parsers do) would otherwise lose it. Outbound `node:http` bodies are captured from `http.client.request.created`, which fires before the caller writes the body (`start` fires after).
+- 2026-11-22 — Writes are replayed with concurrency 1 by default (any explicit `--concurrency` wins): a create followed by a read of it only means something in that order. Reset runs once per replay, not per request.
+- 2026-11-22 — The dashboard is its own package that depends on `@gerra/cli/api`. The CLI can't depend on it back, so `gerra dashboard` looks for `@gerra/dashboard` at runtime and otherwise says to use `npx @gerra/dashboard`. It is read-only, has no dependencies, listens on 127.0.0.1 and rejects requests whose Host isn't localhost (DNS rebinding), because tapes hold real traffic.
+- 2026-11-22 — The GitHub Action is a composite action at the repo root (`uses: bottercode/gerra@main`) with its logic in `action/*.sh`, so it can be run and tested locally. It runs `npx @gerra/cli@<version>` (default latest), so it needs the 0.2.0 publish for `--markdown` and `--reset`.

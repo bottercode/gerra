@@ -29,18 +29,22 @@ pnpm monorepo, TypeScript, Node ≥ 24, ESM only.
 
 ```
 packages/
-  core/   tape format, diff + normalization engine, report model (no I/O-heavy deps)
-  cli/    `gerra` binary: record | replay | diff | shadow | cutover (uses core); exports `@gerra/cli/api`
-  mcp/    MCP server for agents (uses `@gerra/cli/api`)
+  core/       tape format, diff + normalization engine, report model, effects (no I/O-heavy deps)
+  cli/        `gerra` binary: record | replay | diff | shadow | cutover | dashboard (uses core); exports `@gerra/cli/api`
+  mcp/        MCP server for agents (uses `@gerra/cli/api`)
+  sdk-node/   `@gerra/sdk-node`: reports a Node service's side effects (no deps, not even core)
+  dashboard/  `@gerra/dashboard`: local read-only web UI over .gerra/ (uses `@gerra/cli/api`; static ui/)
+action.yml, action/        GitHub Action (composite) running gerra replay in CI
 skills/
   gerra-rewrite/SKILL.md   agent workflow: rewrite route by route until gerra replay passes
 examples/
   express-pricing/   small Express app + a deliberately imperfect rewrite
+  python-todos/      Python (stdlib + SQLite) → Node rewrite: writes, --reset, effects
   json-server/       launch demo: json-server ported to Go (go/ is its own Go module)
 docs/
   PLAN.md   roadmap + milestone checklist (source of truth for "what next")
 ```
-Later packages (do not create until their milestone): `proxy` (if the CLI's proxy outgrows it), `sdk-node` (DB/outbound-call capture), `dashboard`.
+Later packages (do not create until their milestone): `proxy` (if the CLI's proxy outgrows it).
 
 Key design decisions (change only with a note in PLAN.md "Decisions"):
 - **HTTP-layer first, language-agnostic.** v1 needs zero code changes in the user's service: point a proxy at it. SDKs for DB/outbound capture come later.

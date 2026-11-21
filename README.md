@@ -6,6 +6,8 @@ gerra records how your existing service behaves on real traffic, replays that tr
 
 > AI writes the new code. gerra is the proof that makes it safe to ship.
 
+![gerra replaying 2000 recorded json-server requests against a Go rewrite: 25 differ, one is shown in full, and after the fix all 2000 match](docs/demo.gif)
+
 ## How it works
 
 ```bash
@@ -13,6 +15,7 @@ gerra record  --target http://localhost:3000 --tape checkout      # watch the ol
 gerra replay  checkout --against http://localhost:4000            # test the rewrite on real requests
 gerra shadow  --primary :3000 --candidate :4000                   # compare on live traffic, users unaffected
 gerra cutover --primary :3000 --candidate :4000 --hold 10m        # switch 1% → 10% → 50% → 100%, auto-rollback
+gerra dashboard                                                   # see tapes, runs and differences in a browser
 ```
 
 Works at the HTTP layer, so the old and new services can be in any language.
@@ -67,6 +70,16 @@ pnpm gerra diff checkout    # show the report for the last run again, without se
 
 The report lists each route and where its responses differ, e.g. `body $.discount  9.41 → 9.42`, with a sample request you can reproduce. Status, `content-type`, `location` and the body are compared. JSON is compared structurally, after undoing gzip/br. Fields that were masked in the tape match anything. `--json` gives a machine-readable report. The exit code is non-zero if anything differs or fails, so you can use it in CI. Replay refuses targets that don't look local or internal unless you pass `--allow-prod`.
 
+### Writes and state
+
+Replaying a POST only means something if the rewrite starts from the state the original was in when the request was recorded. `--reset` runs a command first (reseed a database, restore a snapshot), and when writes are replayed gerra sends requests one at a time in recorded order, so a create and the read after it happen in that order:
+
+```bash
+pnpm gerra replay todos --against :4200 --unsafe-methods "*" --reset "python3 seed.py data/rewrite.db"
+```
+
+Put `"reset": "<command>"` in `gerra.config.json` to make it the default for every replay, including the ones an agent runs over MCP. If the reset fails, nothing is replayed.
+
 ### Noise
 
 Real services return values that change on every request: timestamps, generated IDs, expiry times. gerra keeps them out of the way three ways, and the report always lists what it ignored and why:
@@ -74,6 +87,23 @@ Real services return values that change on every request: timestamps, generated 
 - **Normalizers:** ISO date-times and UUIDs that keep the same format are treated as equal (on by default). Values of id-named fields can be too, but only if you turn that on.
 - **Learned noise:** `gerra replay checkout --against :4000 --original :3000` sends each request to the original twice. Fields that differ between the original's own two answers are treated as noise. They're saved to `.gerra/noise/checkout.json` and reused by later replays.
 - **Config:** use `gerra.config.json` for ignore rules, unordered arrays, masking and per-route settings. See [docs/config.md](docs/config.md).
+
+## Side effects: what the rewrite did, not just what it answered
+
+A rewrite can answer every request correctly and still forget to send the webhook, or write to a different table. Services can report their side effects to gerra: outbound HTTP calls with their payloads, database queries, anything else. gerra records them with the tape and compares them on replay and in shadow, in any order:
+
+```bash
+npm install @gerra/sdk-node
+node --import @gerra/sdk-node/register server.js    # no code changes: reports fetch and node:http calls
+```
+
+```
+✗ PATCH /todos/:id  (3 identical, 4 different)
+    effects $[*]  ×4
+      e.g. PATCH /todos/2 at effects $[0]: {"type":"http","method":"POST","url":"http://127.0.0.1:9900/hooks",… → (none)
+```
+
+Database queries are opt-in (`instrumentQueries(pool, { db: "postgres" })`, `instrumentSqlite(db)`), because two implementations rarely write the same SQL. The protocol is one request header and one response header, so services in other languages can report effects too; [examples/python-todos](examples/python-todos) does it from Python with a 20-line helper. Effects are only compared when both sides report them. See [docs/effects.md](docs/effects.md).
 
 ## Usable today: shadow
 
@@ -98,6 +128,29 @@ pnpm gerra cutover rollback    # send everything back to the original right now
 
 Users routed to the rewrite get the rewrite's answer. Every GET/HEAD/OPTIONS request is also sent to the other service afterwards, and the two answers are compared. The share of traffic going to the rewrite goes up one step at a time once a step has held for `--hold` with enough traffic. All traffic goes back to the original immediately if, in the current step, the rate of different answers (`--max-diff-rate`, default 1%), the rewrite's error rate (`--max-error-rate`, default 1%) or its p99 latency (`--max-p99`, default 2× the original's) crosses its threshold. If the rewrite fails before answering a GET, the original answers instead, so users don't see the failure. Writes are routed but never duplicated for comparison unless you opt in.
 
+## CI: replay on every pull request
+
+Commit a tape, and the [GitHub Action](docs/ci.md) replays it against the rewrite built from each pull request. The report goes to the job summary and to a pull request comment that is updated on every push:
+
+```yaml
+- uses: bottercode/gerra@main
+  with:
+    tape: checkout
+    start: go run ./cmd/server        # started in the background, then waited for
+    against: :4000
+    reset: ./scripts/seed-test-db.sh
+```
+
+`gerra replay --markdown <file>` writes the same Markdown report anywhere else.
+
+## Dashboard
+
+```bash
+npx @gerra/dashboard      # or `gerra dashboard` when @gerra/dashboard is installed next to the CLI
+```
+
+A local, read-only web view of `.gerra/` at http://localhost:7700: each tape with how every replay of it went over time, a run's differences grouped by route, one exchange with the recorded and the rewrite's answers and side effects side by side (the places that differ highlighted), learned noise, and live shadow and cutover sessions. It only listens on localhost.
+
 ## Usable today: the agent loop
 
 gerra gives coding agents a way to check their own work. An agent rewrites one route, replays that route's recorded traffic, reads exactly what differs, fixes it, and only moves on when it passes.
@@ -116,11 +169,13 @@ pnpm gerra diff checkout --exchange ex_3f445aac                          # one d
 
   The MCP tools only replay against local or internal targets.
 
-Try all of this on the example app and its deliberately imperfect rewrite in [examples/express-pricing](examples/express-pricing).
+Try all of this on the example apps and their deliberately imperfect rewrites: [examples/express-pricing](examples/express-pricing) (Express → plain Node) and [examples/python-todos](examples/python-todos) (Python → Node, with writes, `--reset` and webhooks checked as side effects; the one difference left is Python's `round(12.5) == 12`).
 
 ## Status
 
-Early development. Every command works: `record`, `tapes`, `replay` (with noise filtering), `diff`, `shadow` and `cutover`. So does the agent loop (skill and MCP server), and the json-server demo above was built with it. See [docs/PLAN.md](docs/PLAN.md).
+Early development. Every command works: `record`, `tapes`, `replay` (with noise filtering, `--reset` and side effects), `diff`, `shadow`, `cutover` and `dashboard`. So do the agent loop (skill and MCP server), the Node SDK and the GitHub Action, and the json-server demo above was built with gerra. See [docs/PLAN.md](docs/PLAN.md).
+
+Version 0.2.0 (stateful replay, side effects, `--markdown`, the dashboard and the Action) is in this repository; npm still has 0.1.0 until it is published.
 
 ## License
 
