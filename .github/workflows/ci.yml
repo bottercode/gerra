@@ -52,7 +52,7 @@ jobs:
           tape: checkout
           against: :4000
           start: node rewrite.js
-          args: --header "authorization: Bearer test"
+          args: '--header "authorization: Bearer test"'
           working-directory: examples/express-pricing
           gerra: node ../../packages/cli/dist/index.js
           fail-on-diff: "false"
