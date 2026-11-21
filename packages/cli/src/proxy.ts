@@ -3,7 +3,7 @@ import http from "node:http";
 import https from "node:https";
 import type { AddressInfo } from "node:net";
 import { performance } from "node:perf_hooks";
-import { TAPE_VERSION, encodeBody, type Exchange, type RecordedBody } from "@gerra/core";
+import { TAPE_VERSION, encodeBody, type Exchange, type RecordedBody } from "gerra-core";
 
 export interface ProxyOptions {
   /** Service to forward to (the primary), e.g. `http://localhost:3000`. A path prefix is allowed. */

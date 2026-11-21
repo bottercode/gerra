@@ -12,7 +12,7 @@ import {
   type Exchange,
   type Mismatch,
   type RecordedResponse,
-} from "@gerra/core";
+} from "gerra-core";
 import { startProxy, type ServedMeta } from "./proxy.js";
 import { isUnsafeAllowed, makeTarget, requestHeaders, send, type Target } from "./replay.js";
 import { RollingLog, Window } from "./shadow.js";

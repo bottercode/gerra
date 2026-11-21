@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { serializeExchange, type Exchange } from "@gerra/core";
+import { serializeExchange, type Exchange } from "gerra-core";
 import { formatTapes, listTapes, tapePath } from "./tapes.js";
 
 function ex(method: string, path: string, status: number, at: string): Exchange {

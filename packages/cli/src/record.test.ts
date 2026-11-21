@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { MASK, decodeBody, parseTape, type Exchange } from "@gerra/core";
+import { MASK, decodeBody, parseTape, type Exchange } from "gerra-core";
 import { TapeExistsError, startRecorder, type Recorder } from "./record.js";
 
 /** Upstream used by the tests. Each route exercises one proxy behavior. */

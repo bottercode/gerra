@@ -34,7 +34,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@gerra/core": "workspace:*"
+    "gerra-core": "workspace:*"
   },
   "exports": {
     "./api": {

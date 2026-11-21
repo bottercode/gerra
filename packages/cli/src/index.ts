@@ -8,7 +8,7 @@ import {
   replayableRoutes,
   rulesFor,
   type NoiseProfile,
-} from "@gerra/core";
+} from "gerra-core";
 import { UsageError, compareExchange, exitCodeFor, normalizeUrl, reportText, runDiff, runReplay } from "./api.js";
 import { DEFAULT_CONFIG_FILE, loadConfig } from "./config.js";
 import { formatExchangeComparison } from "./report.js";

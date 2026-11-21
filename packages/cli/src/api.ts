@@ -20,7 +20,7 @@ import {
   type RecordedResponse,
   type ReplayReport,
   type ReplayResult,
-} from "@gerra/core";
+} from "gerra-core";
 import { loadConfig } from "./config.js";
 import { DEFAULT_NOISE_DIR, loadNoise, saveNoise } from "./noise.js";
 import { looksLocal, replayTape } from "./replay.js";

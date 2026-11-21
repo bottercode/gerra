@@ -1,6 +1,6 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { parseTape, summarizeRoutes, type RouteSummary } from "@gerra/core";
+import { parseTape, summarizeRoutes, type RouteSummary } from "gerra-core";
 
 export const DEFAULT_TAPES_DIR = join(".gerra", "tapes");
 

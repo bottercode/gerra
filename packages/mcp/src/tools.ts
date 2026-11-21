@@ -1,4 +1,4 @@
-import type { Exchange, RecordedBody } from "@gerra/core";
+import type { Exchange, RecordedBody } from "gerra-core";
 import {
   compareExchange,
   exitCodeFor,

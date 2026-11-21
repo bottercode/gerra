@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { serializeExchange, type Exchange } from "@gerra/core";
+import { serializeExchange, type Exchange } from "gerra-core";
 import { PROTOCOL_VERSIONS, ToolError, createHandler, serveStdio, type Tool } from "./server.js";
 import { gerraTools } from "./tools.js";
 

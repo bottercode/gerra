@@ -1,5 +1,5 @@
 import type { ExchangeComparison } from "./api.js";
-import type { IgnoredGroup, LatencyStats, NoiseProfile, ReplayReport, RouteReport, Sample } from "@gerra/core";
+import type { IgnoredGroup, LatencyStats, NoiseProfile, ReplayReport, RouteReport, Sample } from "gerra-core";
 
 function clip(s: string, max: number): string {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
