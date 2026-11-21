@@ -1,6 +1,6 @@
 # gerra — plan
 
-**Current milestone: M6 — agent loop** (M0, M1 done 2026-11-20; M2–M5 done 2026-11-21)
+**Current milestone: M7 — launch demo** (M0, M1 done 2026-11-20; M2–M6 done 2026-11-21)
 
 Goal for the first public launch (end of M7): port a popular open-source Node service to Go with an agent, verified by gerra, and post the result ("N× faster, X real requests replayed, byte-identical").
 
@@ -42,9 +42,10 @@ Goal for the first public launch (end of M7): port a popular open-source Node se
 - [x] Auto-rollback on diff rate / error rate / p99 thresholds
 - [x] `gerra cutover status` / `gerra cutover rollback` (manual rollback via SIGUSR2)
 
-### M6 — agent loop
-- [ ] Claude Code skill: rewrite one route at a time, run `gerra replay --route`, fix until clean
-- [ ] MCP server exposing tapes, replay, and diff results to agents
+### M6 — agent loop ✅
+- [x] Claude Code skill: rewrite one route at a time, run `gerra replay --route`, fix until clean (`skills/gerra-rewrite/SKILL.md`)
+- [x] MCP server exposing tapes, replay, and diff results to agents (`packages/mcp`)
+- [x] `gerra replay/diff --route`, `gerra diff --exchange <id>` for one difference in full
 
 ### M7 — launch demo
 - [ ] Pick a popular OSS Node service, record realistic traffic, port to Go with the agent loop
@@ -90,3 +91,8 @@ Goal for the first public launch (end of M7): port a popular open-source Node se
 - 2026-11-21 — Both p99s are measured from requests served to users through the proxy, so they're comparable. The candidate's covers the current step; the primary's is a 1000-request window across steps, so a baseline still exists at 100%. A first version used direct comparison calls for the primary and proxied requests for the candidate, which was biased against the candidate; the demo exposed it.
 - 2026-11-21 — Failover: if the candidate fails before sending response headers on a GET/HEAD/OPTIONS, the proxy answers from the primary (the user sees no error) and counts it as a candidate error. Writes are never retried on the other service; they get a 502.
 - 2026-11-21 — Manual rollback is `gerra cutover rollback`. It sends SIGUSR2 to the pid in `state.json` and waits for the state to confirm. SIGUSR1 is avoided because Node uses it for the inspector. This is POSIX-only; Windows isn't supported. `gerra cutover status` exits 3 when rolled back, so scripts can check without parsing.
+- 2026-11-21 — The MCP server is hand-written (JSON-RPC 2.0 over newline-delimited stdio; initialize, ping, tools/list, tools/call; protocol versions 2025-06-18, 2025-03-26 and 2024-11-05) instead of using `@modelcontextprotocol/sdk`. That keeps gerra free of runtime dependencies, and a tools-only server is about 100 lines. Revisit if we need resources, prompts or HTTP transport.
+- 2026-11-21 — The replay/diff logic moved from the CLI's argument handling into `cli/src/api.ts`. The cli package exports it as `gerra/api`, and `packages/mcp` imports it, so the CLI and the agent tools can't drift apart. Dependency direction: core ← cli ← mcp.
+- 2026-11-21 — MCP tools never allow production targets (no `allow-prod` argument), and they replay writes only when the agent passes `unsafe_methods` explicitly. Tool failures come back as `isError` results the agent can read, not protocol errors.
+- 2026-11-21 — Learning noise with `--original` on a subset of routes (`--route`) keeps what was learned earlier for the other routes, so an agent working route by route doesn't erase noise.
+- 2026-11-21 — The skill lives in `skills/gerra-rewrite/SKILL.md` and works with the CLI or the MCP tools. Its central rule: never make a replay pass by hiding a difference. Copy the original's bugs and report them; changing behavior is the user's call.

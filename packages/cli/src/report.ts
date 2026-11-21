@@ -1,3 +1,4 @@
+import type { ExchangeComparison } from "./api.js";
 import type { IgnoredGroup, LatencyStats, NoiseProfile, ReplayReport, RouteReport, Sample } from "@gerra/core";
 
 function clip(s: string, max: number): string {
@@ -121,4 +122,35 @@ export function formatReport(report: ReplayReport, meta: ReportMetaForFormat): s
 export function exitCodeFor(report: ReplayReport): number {
   const s = report.summary;
   return s.different + s.errors > 0 || s.identical === 0 ? 1 : 0;
+}
+
+function bodyText(res: { headers: Record<string, string>; body: { encoding: string; data: string; truncated?: true } | null }, max = 2000): string {
+  if (!res.body) return "(empty)";
+  if (res.body.encoding === "base64") return `(${Buffer.from(res.body.data, "base64").length} bytes, base64${res.headers["content-encoding"] ? `, ${res.headers["content-encoding"]}` : ""})`;
+  let text = res.body.data;
+  try {
+    text = JSON.stringify(JSON.parse(text), null, 2);
+  } catch {
+    // not JSON: show as is
+  }
+  return (text.length > max ? `${text.slice(0, max)}\n… (${text.length - max} more characters)` : text) + (res.body.truncated ? "\n(truncated in the tape)" : "");
+}
+
+/** One exchange in detail: the request, the recorded and candidate answers, and the differences. */
+export function formatExchangeComparison(c: ExchangeComparison): string {
+  const q = c.request.query ? `?${c.request.query}` : "";
+  const out = [`${c.id}  ${c.request.method} ${c.request.path}${q}  (route ${c.route})`];
+  if (c.request.body) out.push("", "Request body:", bodyText({ headers: c.request.headers, body: c.request.body }));
+  out.push("", `Recorded answer: ${c.recorded.status} ${c.recorded.headers["content-type"] ?? ""}`, bodyText(c.recorded));
+  if (c.outcome === "replayed" && c.candidate) {
+    out.push("", `Candidate answer: ${c.candidate.status} ${c.candidate.headers["content-type"] ?? ""}`, bodyText(c.candidate));
+  } else {
+    out.push("", `Candidate: ${c.outcome}${c.error ? ` (${c.error})` : ""}${c.reason ? ` (${c.reason})` : ""}`);
+  }
+  out.push("");
+  if (c.mismatches.length === 0 && c.outcome === "replayed") out.push("✓ Equivalent.");
+  for (const m of c.mismatches) out.push(`✗ ${m.at}: ${value(m.original, false)} → ${value(m.candidate, false)}${m.note ? ` (${m.note})` : ""}`);
+  if (c.ignored.length > 0) out.push(`ignored: ${c.ignored.map((m) => `${m.at} (${m.ignored})`).join(", ")}`);
+  out.push(`From run ${c.run}`);
+  return out.join("\n");
 }

@@ -1,27 +1,19 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
-import { readFile } from "node:fs/promises";
 import {
   DEFAULT_COMPARED_HEADERS,
   DEFAULT_MASKED_HEADERS,
-  RUN_VERSION,
   TAPE_VERSION,
-  buildReport,
-  learnNoise,
-  parseTape,
   replayableRoutes,
   rulesFor,
-  type Exchange,
-  type GerraConfig,
   type NoiseProfile,
-  type ReplayReport,
 } from "@gerra/core";
+import { UsageError, compareExchange, exitCodeFor, normalizeUrl, reportText, runDiff, runReplay } from "./api.js";
 import { DEFAULT_CONFIG_FILE, loadConfig } from "./config.js";
-import { DEFAULT_NOISE_DIR, loadNoise, saveNoise } from "./noise.js";
+import { formatExchangeComparison } from "./report.js";
+import { DEFAULT_NOISE_DIR, loadNoise } from "./noise.js";
 import { DEFAULT_MAX_BODY_BYTES, startRecorder } from "./record.js";
-import { looksLocal, replayTape } from "./replay.js";
-import { exitCodeFor, formatReport } from "./report.js";
-import { DEFAULT_RUNS_DIR, latestRunPath, loadRun, saveRun } from "./runs.js";
+import { DEFAULT_RUNS_DIR } from "./runs.js";
 import { DEFAULT_SHADOW_DIR, shadowDir, startShadow, type RecentEntry } from "./shadow.js";
 import { formatShadowState, isAlive, readShadowState } from "./shadow-status.js";
 import { DEFAULT_CUTOVER_DIR, DEFAULT_STEPS, DEFAULT_THRESHOLDS, cutoverDir, startCutover } from "./cutover.js";
@@ -93,6 +85,8 @@ compared), so it can gate CI. Each run is saved to ${DEFAULT_RUNS_DIR}/<tape>/.
 
 Options:
   --against <url>          Candidate service (required), e.g. http://localhost:4000
+  --route <route>          Only replay this route (repeatable), as gerra tapes lists it:
+                           "POST /cart/price", "GET /products/:id", or a path for any method
   --unsafe-methods <rule>  Also replay non-idempotent requests (repeatable): "*" for all,
                            a method ("POST"), or a route as listed by gerra tapes ("POST /cart/price")
   --header "<name>: <v>"   Set a request header on every request (repeatable); use it to supply
@@ -122,6 +116,9 @@ run (or, if it had none, the tape's learned noise). Same output and exit code as
 
 Options:
   --run <path>             Use this run file instead of the latest
+  --route <route>          Only report on this route (repeatable)
+  --exchange <id>          Show one exchange in full: request, recorded and candidate answers,
+                           and the differences (an id prefix like ex_3f445aac is enough)
   --compare-header <name>  Also compare this response header (repeatable)
   --no-noise               Don't apply learned noise
   --config <path>          Config file (default ./${DEFAULT_CONFIG_FILE} if present); edit it and re-run diff
@@ -211,8 +208,6 @@ Options:
 Rollback by hand at any time with: gerra cutover rollback (or kill -USR2 <pid>).`;
 
 const NOT_YET = new Set<string>();
-
-class UsageError extends Error {}
 
 function parsePositiveInt(value: string, flag: string, allowZero = false): number {
   const n = Number(value);
@@ -323,41 +318,6 @@ async function tapes(args: string[]): Promise<number> {
   return list.some((t) => t.error) ? 1 : 0;
 }
 
-/** Accept the shorthand ":3000" / "localhost:3000" as well as full URLs. */
-function normalizeUrl(value: string): string {
-  if (/^https?:\/\//.test(value)) return value;
-  return `http://${value.startsWith(":") ? `localhost${value}` : value}`;
-}
-
-async function loadTape(dir: string, name: string | undefined, help: string): Promise<{ path: string; exchanges: Exchange[] }> {
-  if (!name) throw new UsageError(`missing tape name\n\n${help}`);
-  const path = tapePath(dir, name);
-  let contents: string;
-  try {
-    contents = await readFile(path, "utf8");
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") throw new Error(`no tape "${name}" at ${path}`);
-    throw err;
-  }
-  return { path, exchanges: parseTape(contents) };
-}
-
-interface ReportMeta {
-  tape: string;
-  against: string;
-  run: string;
-  startedAt: string;
-  config: string | null;
-  noise: NoiseProfile | null;
-  droppedMaskedHeaders?: string[];
-}
-
-function printReport(report: ReplayReport, { saved, ...meta }: ReportMeta & { saved: boolean }, json: boolean): number {
-  if (json) console.log(JSON.stringify({ ...meta, report }, null, 2));
-  else console.log(`${formatReport(report, meta)}\n${saved ? "Run saved to" : "From run"} ${meta.run}`);
-  return exitCodeFor(report);
-}
-
 const compareOptions = {
   "compare-header": { type: "string", multiple: true, default: [] as string[] },
   config: { type: "string" },
@@ -369,15 +329,10 @@ const compareOptions = {
   help: { type: "boolean", short: "h", default: false },
 } as const;
 
-function report(exchanges: Exchange[], results: Parameters<typeof buildReport>[1], config: GerraConfig, noise: NoiseProfile | null, extraHeaders: string[]) {
-  return buildReport(exchanges, results, { rulesFor: (route) => rulesFor(config, route, noise, extraHeaders) });
-}
-
-function assertLocal(url: string, flag: string, allowProd: boolean): void {
-  const host = new URL(url).hostname;
-  if (!allowProd && !looksLocal(host)) {
-    throw new UsageError(`refusing to send ${flag} traffic to "${host}", which doesn't look local or internal. Pass --allow-prod if you're sure.`);
-  }
+function printOutcome(o: Parameters<typeof reportText>[0], saved: boolean, json: boolean, extra: Record<string, unknown> = {}): number {
+  if (json) console.log(JSON.stringify({ ...o, ...extra }, null, 2));
+  else console.log(reportText(o, saved));
+  return exitCodeFor(o.report);
 }
 
 async function replay(args: string[]): Promise<number> {
@@ -387,6 +342,7 @@ async function replay(args: string[]): Promise<number> {
     options: {
       ...compareOptions,
       against: { type: "string" },
+      route: { type: "string", multiple: true, default: [] as string[] },
       "unsafe-methods": { type: "string", multiple: true, default: [] as string[] },
       header: { type: "string", multiple: true, default: [] as string[] },
       concurrency: { type: "string", default: "8" },
@@ -401,73 +357,43 @@ async function replay(args: string[]): Promise<number> {
   }
   if (positionals.length > 1) throw new UsageError(`expected one tape name, got ${positionals.length}\n\n${REPLAY_HELP}`);
   const name = positionals[0];
+  if (!name) throw new UsageError(`missing tape name\n\n${REPLAY_HELP}`);
   if (!values.against) throw new UsageError(`--against is required\n\n${REPLAY_HELP}`);
-  const against = normalizeUrl(values.against);
-  assertLocal(against, "--against", values["allow-prod"]);
-  const original = values.original ? normalizeUrl(values.original) : undefined;
-  if (original) assertLocal(original, "--original", values["allow-prod"]);
-  if (original && values["no-noise"]) throw new UsageError("--original learns noise, so it can't be combined with --no-noise");
-  const setHeaders: Record<string, string> = {};
+  const headers: Record<string, string> = {};
   for (const h of values.header) {
     const i = h.indexOf(":");
     if (i <= 0) throw new UsageError(`--header must look like "name: value", got "${h}"`);
-    setHeaders[h.slice(0, i).trim().toLowerCase()] = h.slice(i + 1).trim();
+    headers[h.slice(0, i).trim().toLowerCase()] = h.slice(i + 1).trim();
   }
-  const concurrency = parsePositiveInt(values.concurrency, "--concurrency");
-  const timeoutMs = parsePositiveInt(values.timeout, "--timeout");
-  const tape = await loadTape(values.dir, name, REPLAY_HELP);
-  const tapeName = name as string;
-  const { config, path: configPath } = await loadConfig(values.config);
-
-  const startedAt = new Date().toISOString();
-  if (!values.json) {
-    const also = original ? ` (and twice against ${original} to learn noise)` : "";
-    console.error(`Replaying ${tape.exchanges.length} exchanges from ${tape.path} against ${against}${also}…`);
-  }
-  const { results, droppedMaskedHeaders, originalPairs, originalErrors } = await replayTape({
-    against,
-    original,
-    exchanges: tape.exchanges,
-    concurrency,
-    timeoutMs,
-    unsafe: [...values["unsafe-methods"], ...replayableRoutes(config)],
-    setHeaders,
+  const outcome = await runReplay({
+    tape: name,
+    against: values.against,
+    ...(values.original ? { original: values.original } : {}),
+    routes: values.route,
+    unsafe: values["unsafe-methods"],
+    headers,
+    concurrency: parsePositiveInt(values.concurrency, "--concurrency"),
+    timeoutMs: parsePositiveInt(values.timeout, "--timeout"),
+    compareHeaders: values["compare-header"],
+    ...(values.config ? { config: values.config } : {}),
+    noNoise: values["no-noise"],
+    allowProd: values["allow-prod"],
+    dirs: { tapes: values.dir, runs: values["runs-dir"], noise: values["noise-dir"] },
+    ...(values.json ? {} : { onNote: (m: string) => console.error(m) }),
   });
-  let noise: NoiseProfile | null = null;
-  if (original) {
-    noise = learnNoise(tape.exchanges, originalPairs, {
-      learnedFrom: original,
-      learnedAt: startedAt,
-      headers: rulesFor(config, "", null, values["compare-header"]).headers ?? [],
-    });
-    const saved = await saveNoise(values["noise-dir"], tapeName, noise);
-    if (!values.json) {
-      const n = Object.values(noise.routes).reduce((sum, r) => sum + r.length, 0);
-      console.error(`Learned ${n} noisy place${n === 1 ? "" : "s"} from ${noise.samples} exchanges on the original; saved to ${saved}`);
-      if (originalErrors > 0) console.error(`Warning: ${originalErrors} requests to the original failed and weren't used for learning.`);
-    }
-  } else if (!values["no-noise"]) {
-    noise = await loadNoise(values["noise-dir"], tapeName);
-  }
-  if (droppedMaskedHeaders.length > 0 && !values.json) {
-    console.error(
-      `Note: ${droppedMaskedHeaders.join(", ")} ${droppedMaskedHeaders.length === 1 ? "was" : "were"} masked in the tape and not sent. ` +
-        `Supply test values with --header "${droppedMaskedHeaders[0]}: …" if the candidate needs them.`,
-    );
-  }
-  const run = await saveRun(values["runs-dir"], {
-    header: { v: RUN_VERSION, type: "run", tape: tapeName, against, startedAt, ...(noise ? { noise } : {}) },
-    results,
-  });
-  const r = report(tape.exchanges, results, config, noise, values["compare-header"]);
-  return printReport(r, { tape: tapeName, against, run, startedAt, config: configPath, noise, saved: true, droppedMaskedHeaders }, values.json);
+  return printOutcome(outcome, true, values.json);
 }
 
 async function diff(args: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args,
     allowPositionals: true,
-    options: { ...compareOptions, run: { type: "string" } },
+    options: {
+      ...compareOptions,
+      run: { type: "string" },
+      route: { type: "string", multiple: true, default: [] as string[] },
+      exchange: { type: "string" },
+    },
   });
   if (values.help) {
     console.log(DIFF_HELP);
@@ -475,16 +401,16 @@ async function diff(args: string[]): Promise<number> {
   }
   if (positionals.length > 1) throw new UsageError(`expected one tape name, got ${positionals.length}\n\n${DIFF_HELP}`);
   const name = positionals[0];
-  const tape = await loadTape(values.dir, name, DIFF_HELP);
-  const tapeName = name as string;
-  const runFile = values.run ?? (await latestRunPath(values["runs-dir"], tapeName));
-  if (!runFile) throw new Error(`no replay runs for "${tapeName}" yet. Run: gerra replay ${tapeName} --against <url>`);
-  const run = await loadRun(runFile);
-  const { config, path: configPath } = await loadConfig(values.config);
-  const noise = values["no-noise"] ? null : (run.header.noise ?? (await loadNoise(values["noise-dir"], tapeName)));
-  const r = report(tape.exchanges, run.results, config, noise, values["compare-header"]);
-  const meta = { tape: tapeName, against: run.header.against, run: runFile, startedAt: run.header.startedAt, config: configPath, noise };
-  return printReport(r, { ...meta, saved: false }, values.json);
+  if (!name) throw new UsageError(`missing tape name\n\n${DIFF_HELP}`);
+  const dirs = { tapes: values.dir, runs: values["runs-dir"], noise: values["noise-dir"] };
+  const common = { tape: name, ...(values.run ? { run: values.run } : {}), ...(values.config ? { config: values.config } : {}), noNoise: values["no-noise"], dirs };
+  if (values.exchange) {
+    const c = await compareExchange({ ...common, id: values.exchange });
+    console.log(values.json ? JSON.stringify(c, null, 2) : formatExchangeComparison(c));
+    return c.outcome === "replayed" && c.mismatches.length === 0 ? 0 : 1;
+  }
+  const outcome = await runDiff({ ...common, routes: values.route, compareHeaders: values["compare-header"] });
+  return printOutcome(outcome, false, values.json);
 }
 
 async function shadowStatus(args: string[]): Promise<number> {

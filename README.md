@@ -77,11 +77,29 @@ pnpm gerra cutover rollback    # send everything back to the original right now
 
 Users routed to the rewrite get the rewrite's answer. Every GET/HEAD/OPTIONS request is also sent to the other service afterwards, and the two answers are compared. The share of traffic going to the rewrite goes up one step at a time once a step has held for `--hold` with enough traffic. All traffic goes back to the original immediately if, in the current step, the rate of different answers (`--max-diff-rate`, default 1%), the rewrite's error rate (`--max-error-rate`, default 1%) or its p99 latency (`--max-p99`, default 2× the original's) crosses its threshold. If the rewrite fails before answering a GET, the original answers instead, so users don't see the failure. Writes are routed but never duplicated for comparison unless you opt in.
 
+## Usable today: the agent loop
+
+gerra gives coding agents a way to check their own work. An agent rewrites one route, replays that route's recorded traffic, reads exactly what differs, fixes it, and only moves on when it passes.
+
+```bash
+pnpm gerra replay checkout --against :4000 --route "POST /cart/price"   # one route at a time
+pnpm gerra diff checkout --exchange ex_3f445aac                          # one difference in full
+```
+
+- **Skill:** [skills/gerra-rewrite/SKILL.md](skills/gerra-rewrite/SKILL.md) is the workflow and its rules (never hide a difference; copy the original's bugs and report them). For Claude Code, copy it to `.claude/skills/gerra-rewrite/` in the project you're rewriting.
+- **MCP server:** gives agents `gerra_list_tapes`, `gerra_get_exchanges`, `gerra_replay`, `gerra_diff` and `gerra_explain_exchange`. Run it from the project that holds `.gerra/`:
+
+  ```bash
+  claude mcp add gerra -- node /path/to/gerra/packages/mcp/dist/index.js --root "$PWD"
+  ```
+
+  The MCP tools only replay against local or internal targets.
+
 Try all of this on the example app and its deliberately imperfect rewrite in [examples/express-pricing](examples/express-pricing).
 
 ## Status
 
-Early development. Every command works: `record`, `tapes`, `replay` (with noise filtering), `diff`, `shadow` and `cutover`. Next is the agent loop (an MCP server and a Claude Code skill). See [docs/PLAN.md](docs/PLAN.md).
+Early development. Every command works: `record`, `tapes`, `replay` (with noise filtering), `diff`, `shadow` and `cutover`. So is the agent loop (skill and MCP server). Next is the launch demo: porting a real open-source service with it. See [docs/PLAN.md](docs/PLAN.md).
 
 ## License
 

@@ -30,11 +30,14 @@ pnpm monorepo, TypeScript, Node ≥ 24, ESM only.
 ```
 packages/
   core/   tape format, diff + normalization engine, report model (no I/O-heavy deps)
-  cli/    `gerra` binary: record | replay | diff | shadow | cutover (uses core)
+  cli/    `gerra` binary: record | replay | diff | shadow | cutover (uses core); exports `gerra/api`
+  mcp/    MCP server for agents (uses cli's `gerra/api`)
+skills/
+  gerra-rewrite/SKILL.md   agent workflow: rewrite route by route until gerra replay passes
 docs/
   PLAN.md   roadmap + milestone checklist (source of truth for "what next")
 ```
-Later packages (do not create until their milestone): `proxy` (if the CLI's proxy outgrows it), `sdk-node` (DB/outbound-call capture), `mcp` (agent integration), `dashboard`.
+Later packages (do not create until their milestone): `proxy` (if the CLI's proxy outgrows it), `sdk-node` (DB/outbound-call capture), `dashboard`.
 
 Key design decisions (change only with a note in PLAN.md "Decisions"):
 - **HTTP-layer first, language-agnostic.** v1 needs zero code changes in the user's service: point a proxy at it. SDKs for DB/outbound capture come later.

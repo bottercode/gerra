@@ -41,3 +41,19 @@ export function summarizeRoutes(exchanges: readonly Exchange[]): RouteSummary[] 
   }
   return [...byRoute.values()].sort((a, b) => b.count - a.count || a.route.localeCompare(b.route));
 }
+
+/**
+ * Whether a request belongs to a route filter. Filters are written like `gerra tapes` shows routes:
+ * `POST /cart/price`, `GET /products/:id` (any id), `GET /products/42` (same as `:id`), or just a path
+ * (`/cart/price`) for every method. Methods are case-insensitive.
+ */
+export function matchesRoute(filter: string, method: string, path: string): boolean {
+  const f = filter.trim().replace(/\s+/g, " ");
+  const [first = "", ...rest] = f.split(" ");
+  const filterMethod = f.startsWith("/") ? null : first.toUpperCase();
+  const filterPath = f.startsWith("/") ? f : rest.join(" ");
+  if (!filterPath.startsWith("/")) return false;
+  if (filterMethod !== null && filterMethod !== method.toUpperCase()) return false;
+  const pathOf = (route: string) => route.slice(route.indexOf(" ") + 1);
+  return pathOf(routeOf("X", filterPath)) === pathOf(routeOf("X", path));
+}

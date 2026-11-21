@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { routeOf, summarizeRoutes } from "./summary.js";
+import { matchesRoute, routeOf, summarizeRoutes } from "./summary.js";
 import type { Exchange } from "./tape.js";
 
 function ex(method: string, path: string, status: number): Exchange {
@@ -41,5 +41,21 @@ describe("summarizeRoutes", () => {
       { route: "GET /health", count: 1, statuses: { "200": 1 } },
       { route: "POST /cart/price", count: 1, statuses: { "200": 1 } },
     ]);
+  });
+});
+
+describe("matchesRoute", () => {
+  it.each([
+    ["POST /cart/price", "POST", "/cart/price", true],
+    ["post  /cart/price", "POST", "/cart/price", true],
+    ["GET /cart/price", "POST", "/cart/price", false],
+    ["/cart/price", "POST", "/cart/price", true],
+    ["GET /products/:id", "GET", "/products/42", true],
+    ["GET /products/7", "GET", "/products/42", true],
+    ["GET /products", "GET", "/products/42", false],
+    ["GET /products/:id", "GET", "/products/42/reviews", false],
+    ["GET", "GET", "/", false],
+  ])("%s ~ %s %s → %s", (filter, method, path, expected) => {
+    expect(matchesRoute(filter, method, path)).toBe(expected);
   });
 });

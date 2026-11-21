@@ -1,0 +1,20 @@
+{
+  "name": "@gerra/mcp",
+  "version": "0.0.0",
+  "description": "MCP server that gives coding agents gerra's tapes, replays and diffs.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "gerra-mcp": "dist/index.js"
+  },
+  "main": "dist/server.js",
+  "types": "dist/server.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@gerra/core": "workspace:*",
+    "gerra": "workspace:*"
+  }
+}
