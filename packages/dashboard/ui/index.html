@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gerra dashboard</title>
+<link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#/">gerra</a>
+  <nav>
+    <a href="#/" data-nav="tapes">Tapes</a>
+    <a href="#/live" data-nav="live">Live</a>
+  </nav>
+  <span class="tagline">Rewrite with AI. Prove nothing broke.</span>
+</header>
+<main id="app" aria-live="polite"></main>
+<div id="tip" class="tip" role="tooltip" hidden></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
