@@ -1,6 +1,6 @@
 # gerra — plan
 
-**Current milestone: M7 — launch demo** (launch post left; M0, M1 done 2026-11-20; M2–M6 done 2026-11-21; M8 and the dashboard built 2026-11-22, waiting on the 0.2.0 publish)
+**Current milestone: M7 — launch demo** (launch post left; M0, M1 done 2026-11-20; M2–M6 done 2026-11-21; M8 and the dashboard done and published as 0.2.0 2026-11-22)
 
 Goal for the first public launch (end of M7): port a popular open-source Node service to Go with an agent, verified by gerra, and post the result ("N× faster, X real requests replayed, byte-identical").
 
@@ -60,7 +60,7 @@ Goal for the first public launch (end of M7): port a popular open-source Node se
 - [x] Node SDK (`packages/sdk-node`, `@gerra/sdk-node`): `node --import @gerra/sdk-node/register` reports `fetch` and `node:http` calls via diagnostics_channel; `instrumentQueries` (pg, mysql2), `instrumentSqlite` (node:sqlite) and `recordEffect` for the rest
 - [x] CI: `gerra replay/diff --markdown <file>`, and the repo is a GitHub Action (`action.yml`, docs/ci.md): start the candidate, replay, job summary, one PR comment per tape; CI runs it on express-pricing
 - [x] Second-language demo: `examples/python-todos`, Python (stdlib + SQLite) → Node, with writes, `--reset` and webhooks compared as effects; the one difference left is Python's banker's rounding
-- [ ] Publish 0.2.0 (`@gerra/cli`, `@gerra/core`, `@gerra/mcp`, and the new `@gerra/sdk-node`, `@gerra/dashboard`), then remove the "npm still has 0.1.0" note from the README
+- [x] Publish 0.2.0: `@gerra/cli`, `@gerra/core`, `@gerra/mcp`, and the new `@gerra/sdk-node` and `@gerra/dashboard` (2026-11-22)
 
 ### Dashboard
 - [x] `packages/dashboard` (`@gerra/dashboard`, bin `gerra-dashboard`; `gerra dashboard` runs it when installed): local, read-only web UI over `.gerra/`: tapes with a per-run trend, a run's differences by route, one exchange side by side with differences highlighted (bodies and effects), learned noise, live shadow/cutover sessions

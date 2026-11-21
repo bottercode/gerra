@@ -175,8 +175,6 @@ Try all of this on the example apps and their deliberately imperfect rewrites: [
 
 Early development. Every command works: `record`, `tapes`, `replay` (with noise filtering, `--reset` and side effects), `diff`, `shadow`, `cutover` and `dashboard`. So do the agent loop (skill and MCP server), the Node SDK and the GitHub Action, and the json-server demo above was built with gerra. See [docs/PLAN.md](docs/PLAN.md).
 
-Version 0.2.0 (stateful replay, side effects, `--markdown`, the dashboard and the Action) is in this repository; npm still has 0.1.0 until it is published.
-
 ## License
 
 MIT
