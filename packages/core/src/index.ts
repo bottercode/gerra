@@ -4,3 +4,4 @@ export * from "./summary.js";
 export * from "./compare.js";
 export * from "./report.js";
 export * from "./rules.js";
+export * from "./effects.js";

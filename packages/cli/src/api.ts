@@ -1,6 +1,11 @@
 // Programmatic API behind `gerra replay`, `gerra diff` and `gerra tapes`, shared with the MCP server
 // (packages/mcp). Functions return data; formatting and exit codes are up to the caller.
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
+import { join } from "node:path";
+import { DEFAULT_CUTOVER_DIR, type CutoverState } from "./cutover.js";
+import { readCutoverState } from "./cutover-status.js";
+import { DEFAULT_SHADOW_DIR, type ShadowState } from "./shadow.js";
+import { isAlive, readShadowState } from "./shadow-status.js";
 import {
   RUN_VERSION,
   buildReport,
@@ -23,13 +28,15 @@ import {
 } from "@gerra/core";
 import { loadConfig } from "./config.js";
 import { DEFAULT_NOISE_DIR, loadNoise, saveNoise } from "./noise.js";
-import { looksLocal, replayTape } from "./replay.js";
+import { SAFE_METHODS, isUnsafeAllowed, looksLocal, replayTape } from "./replay.js";
+import { runReset } from "./reset.js";
 import { exitCodeFor, formatReport } from "./report.js";
 import { DEFAULT_RUNS_DIR, latestRunPath, loadRun, saveRun } from "./runs.js";
 import { DEFAULT_TAPES_DIR, listTapes, tapePath, type TapeInfo } from "./tapes.js";
 
 export { exitCodeFor, formatReport, listTapes, looksLocal, type TapeInfo };
-export { formatExchangeComparison } from "./report.js";
+export type { CutoverState, ShadowState };
+export { formatExchangeComparison, formatReportMarkdown } from "./report.js";
 export { formatTapes } from "./tapes.js";
 
 /** A mistake in what was asked for (bad flag, refused target): the CLI exits 2 for these. */
@@ -86,8 +93,17 @@ export interface ReplayParams {
   unsafe?: readonly string[];
   /** Header values sent on every request, e.g. a test `authorization`. */
   headers?: Readonly<Record<string, string>>;
+  /**
+   * Requests in flight at once. Defaults to 8, or to 1 when writes are replayed, so they reach the
+   * candidate in the order they were recorded.
+   */
   concurrency?: number;
   timeoutMs?: number;
+  /**
+   * Shell command run once before any request is sent, to put the services in the state the tape was
+   * recorded in (e.g. `npm run seed`). Falls back to `reset` in the config. A failing reset aborts the replay.
+   */
+  reset?: string;
   compareHeaders?: readonly string[];
   /** Config file; `./gerra.config.json` is used if present when omitted. */
   config?: string;
@@ -133,18 +149,31 @@ export async function runReplay(p: ReplayParams): Promise<ReplayOutcome> {
   }
   const { config, path: configPath } = await loadConfig(p.config);
   const extraHeaders = [...(p.compareHeaders ?? [])];
+  const unsafe = [...(p.unsafe ?? []), ...replayableRoutes(config)];
+  // Writes depend on what came before them (create, then read back), so they go one at a time in tape order.
+  const writes = exchanges.filter((ex) => !SAFE_METHODS.has(ex.request.method.toUpperCase()) && isUnsafeAllowed(ex, unsafe)).length;
+  const concurrency = p.concurrency ?? (writes > 0 ? 1 : 8);
+  const reset = p.reset ?? config.reset;
+  if (reset) {
+    p.onNote?.(`Resetting: ${reset}`);
+    const ms = await runReset(reset);
+    p.onNote?.(`Reset done in ${(ms / 1000).toFixed(1)}s`);
+  }
   const startedAt = new Date().toISOString();
   const also = original ? ` (and twice against ${original} to learn noise)` : "";
   const scope = routes.length > 0 ? ` (${exchanges.length} of ${tape.exchanges.length}, routes: ${routes.join(", ")})` : "";
   p.onNote?.(`Replaying ${exchanges.length} exchanges from ${tape.path}${scope} against ${against}${also}…`);
+  if (writes > 0 && p.concurrency === undefined) {
+    p.onNote?.(`Replaying ${writes} write${writes === 1 ? "" : "s"}: sending requests one at a time in recorded order.${reset ? "" : " Without --reset the candidate keeps the state earlier runs left behind."}`);
+  }
 
   const { results, droppedMaskedHeaders, originalPairs, originalErrors } = await replayTape({
     against,
     ...(original ? { original } : {}),
     exchanges,
-    ...(p.concurrency !== undefined ? { concurrency: p.concurrency } : {}),
+    concurrency,
     ...(p.timeoutMs !== undefined ? { timeoutMs: p.timeoutMs } : {}),
-    unsafe: [...(p.unsafe ?? []), ...replayableRoutes(config)],
+    unsafe,
     setHeaders: p.headers ?? {},
   });
   if (droppedMaskedHeaders.length > 0) {
@@ -176,7 +205,7 @@ export async function runReplay(p: ReplayParams): Promise<ReplayOutcome> {
   }
 
   const run = await saveRun(p.dirs?.runs ?? DEFAULT_RUNS_DIR, {
-    header: { v: RUN_VERSION, type: "run", tape: p.tape, against, startedAt, ...(noise ? { noise } : {}) },
+    header: { v: RUN_VERSION, type: "run", tape: p.tape, against, startedAt, ...(reset ? { reset } : {}), ...(routes.length > 0 ? { routes } : {}), ...(noise ? { noise } : {}) },
     results,
   });
   const report = buildWithRules(exchanges, results, config, noise, extraHeaders);
@@ -262,4 +291,29 @@ export async function tapesSummary(dir = DEFAULT_TAPES_DIR): Promise<TapeInfo[]>
 export function reportText(o: ReportMeta & { report: ReplayReport }, saved: boolean): string {
   const scope = o.routes.length > 0 ? `\nLimited to routes: ${o.routes.join(", ")}` : "";
   return `${formatReport(o.report, o)}${scope}\n${saved ? "Run saved to" : "From run"} ${o.run}`;
+}
+
+export { listRunFiles, type RunFile } from "./runs.js";
+export { loadNoise } from "./noise.js";
+
+/** A shadow or cutover session from its state file, and whether the process that writes it is still alive. */
+export type LiveSession =
+  | { kind: "shadow"; alive: boolean; state: ShadowState }
+  | { kind: "cutover"; alive: boolean; state: CutoverState };
+
+/** Shadow and cutover sessions found under `.gerra/shadow/*` and `.gerra/cutover/*`, most recently updated first. */
+export async function liveSessions(dirs: { shadow?: string; cutover?: string } = {}): Promise<LiveSession[]> {
+  const found: LiveSession[] = [];
+  const names = async (root: string) => (await readdir(root, { withFileTypes: true }).catch(() => [])).filter((d) => d.isDirectory()).map((d) => d.name);
+  const shadowRoot = dirs.shadow ?? DEFAULT_SHADOW_DIR;
+  for (const name of await names(shadowRoot)) {
+    const state = await readShadowState(join(shadowRoot, name)).catch(() => null);
+    if (state) found.push({ kind: "shadow", alive: state.running && isAlive(state.pid), state });
+  }
+  const cutoverRoot = dirs.cutover ?? DEFAULT_CUTOVER_DIR;
+  for (const name of await names(cutoverRoot)) {
+    const state = await readCutoverState(join(cutoverRoot, name)).catch(() => null);
+    if (state) found.push({ kind: "cutover", alive: state.running && isAlive(state.pid), state });
+  }
+  return found.sort((a, b) => b.state.updatedAt.localeCompare(a.state.updatedAt));
 }

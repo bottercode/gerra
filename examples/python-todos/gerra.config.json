@@ -1,0 +1,8 @@
+{
+  "reset": "python3 seed.py data/rewrite.db",
+  "routes": {
+    "POST /todos": { "replay": true },
+    "PATCH /todos/:id": { "replay": true },
+    "DELETE /todos/:id": { "replay": true }
+  }
+}

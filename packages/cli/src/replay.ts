@@ -3,6 +3,7 @@ import https from "node:https";
 import { isIP } from "node:net";
 import { performance } from "node:perf_hooks";
 import {
+  EFFECTS_HEADER,
   MASK,
   RUN_VERSION,
   decodeBody,
@@ -11,7 +12,9 @@ import {
   type Exchange,
   type RecordedResponse,
   type ReplayResult,
+  takeEffects,
 } from "@gerra/core";
+import { MAX_HEADER_BYTES } from "./proxy.js";
 
 /** Methods that are safe to repeat against a service (RFC 9110 §9.2.1). Others need an explicit opt-in. */
 export const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -92,6 +95,8 @@ export function requestHeaders(ex: Exchange, set: Readonly<Record<string, string
     out[key] = value;
   }
   for (const [name, value] of Object.entries(set)) out[name.toLowerCase()] = value;
+  // Services using a gerra SDK then report their side effects (outbound calls, queries) for comparison.
+  out[EFFECTS_HEADER] = "1";
   if (bodyLength > 0) out["content-length"] = bodyLength;
   return out;
 }
@@ -132,18 +137,21 @@ export function send(target: Target, ex: Exchange, headers: http.OutgoingHttpHea
       headers,
       agent: target.agent,
       signal: AbortSignal.timeout(timeoutMs),
+      maxHeaderSize: MAX_HEADER_BYTES,
     });
     const failed = (err: Error) => resolve({ ok: false, error: describeError(err, timeoutMs), latencyMs: elapsed() });
     req.on("response", (res) => {
       const chunks: Buffer[] = [];
       res.on("data", (c: Buffer) => chunks.push(c));
-      res.on("end", () =>
+      res.on("end", () => {
+        const headers = flatten(res.headers);
+        const effects = takeEffects(headers);
         resolve({
           ok: true,
-          response: { status: res.statusCode ?? 0, headers: flatten(res.headers), body: encodeBody(Buffer.concat(chunks)) },
+          response: { status: res.statusCode ?? 0, headers, body: encodeBody(Buffer.concat(chunks)), ...(effects ? { effects } : {}) },
           latencyMs: elapsed(),
-        }),
-      );
+        });
+      });
       res.on("error", failed);
     });
     req.on("error", failed);

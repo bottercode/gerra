@@ -1,3 +1,5 @@
+import type { Effect } from "./effects.js";
+
 /** Version of the tape line format. Bump on breaking changes. */
 export const TAPE_VERSION = 1;
 
@@ -23,6 +25,11 @@ export interface RecordedResponse {
   status: number;
   headers: Record<string, string>;
   body: RecordedBody | null;
+  /**
+   * What the service reported doing while answering (outbound calls, queries), in order. Absent when
+   * the service doesn't report effects; see `effects.ts`.
+   */
+  effects?: Effect[];
 }
 
 /** One request/response pair: a single line in a `.jsonl` tape. */

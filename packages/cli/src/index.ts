@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import {
   DEFAULT_COMPARED_HEADERS,
@@ -11,7 +12,8 @@ import {
 } from "@gerra/core";
 import { UsageError, compareExchange, exitCodeFor, normalizeUrl, reportText, runDiff, runReplay } from "./api.js";
 import { DEFAULT_CONFIG_FILE, loadConfig } from "./config.js";
-import { formatExchangeComparison } from "./report.js";
+import { formatExchangeComparison, formatReportMarkdown } from "./report.js";
+import { appendFile, writeFile } from "node:fs/promises";
 import { DEFAULT_NOISE_DIR, loadNoise } from "./noise.js";
 import { DEFAULT_MAX_BODY_BYTES, TapeExistsError, startRecorder } from "./record.js";
 import { DEFAULT_RUNS_DIR } from "./runs.js";
@@ -34,6 +36,7 @@ Commands:
             (gerra shadow status shows live counters)
   cutover   Shift live traffic to the candidate step by step, roll back automatically
             (gerra cutover status / gerra cutover rollback)
+  dashboard Open a local web dashboard of tapes, runs, differences and live sessions
 
 Options:
   -h, --help     Show help (also: gerra <command> --help)
@@ -94,7 +97,11 @@ Options:
                            a method ("POST"), or a route as listed by gerra tapes ("POST /cart/price")
   --header "<name>: <v>"   Set a request header on every request (repeatable); use it to supply
                            credentials for headers that were masked in the tape
-  --concurrency <n>        Requests in flight at once (default 8)
+  --reset "<command>"      Run this shell command first to put the services back in the state the
+                           tape was recorded in, e.g. --reset "npm run seed" (or "reset" in the config).
+                           The replay stops if it fails.
+  --concurrency <n>        Requests in flight at once (default 8; 1 when writes are replayed, so
+                           they reach the candidate in recorded order)
   --timeout <ms>           Per-request timeout (default 10000)
   --compare-header <name>  Also compare this response header (repeatable)
   --original <url>         Also send each request to the original service twice and learn the places
@@ -105,6 +112,8 @@ Options:
   --allow-prod             Allow targets that don't look local or internal
   --config <path>          Config file (default ./${DEFAULT_CONFIG_FILE} if present)
   --json                   Machine-readable report
+  --markdown <file>        Also write the report as Markdown, for CI summaries and PR comments
+                           ("-" prints it; $GITHUB_STEP_SUMMARY is appended to)
   --dir <path>             Tapes directory (default ${DEFAULT_TAPES_DIR})
   --runs-dir <path>        Where runs are saved (default ${DEFAULT_RUNS_DIR})
   --noise-dir <path>       Where learned noise is kept (default ${DEFAULT_NOISE_DIR})
@@ -126,6 +135,8 @@ Options:
   --no-noise               Don't apply learned noise
   --config <path>          Config file (default ./${DEFAULT_CONFIG_FILE} if present); edit it and re-run diff
   --json                   Machine-readable report
+  --markdown <file>        Also write the report as Markdown, for CI summaries and PR comments
+                           ("-" prints it; $GITHUB_STEP_SUMMARY is appended to)
   --dir <path>             Tapes directory (default ${DEFAULT_TAPES_DIR})
   --runs-dir <path>        Where runs are saved (default ${DEFAULT_RUNS_DIR})
 
@@ -336,14 +347,22 @@ const compareOptions = {
   "no-noise": { type: "boolean", default: false },
   "noise-dir": { type: "string", default: DEFAULT_NOISE_DIR },
   json: { type: "boolean", default: false },
+  markdown: { type: "string" },
   dir: { type: "string", default: DEFAULT_TAPES_DIR },
   "runs-dir": { type: "string", default: DEFAULT_RUNS_DIR },
   help: { type: "boolean", short: "h", default: false },
 } as const;
 
-function printOutcome(o: Parameters<typeof reportText>[0], saved: boolean, json: boolean, extra: Record<string, unknown> = {}): number {
-  if (json) console.log(JSON.stringify({ ...o, ...extra }, null, 2));
+async function printOutcome(o: Parameters<typeof reportText>[0], saved: boolean, json: boolean, markdown?: string): Promise<number> {
+  if (json) console.log(JSON.stringify(o, null, 2));
   else console.log(reportText(o, saved));
+  if (markdown) {
+    const md = formatReportMarkdown(o.report, o);
+    // "-" prints it; a path is written (appended when it's GitHub's step summary, which other steps share).
+    if (markdown === "-") console.log(md);
+    else if (markdown === process.env.GITHUB_STEP_SUMMARY) await appendFile(markdown, md);
+    else await writeFile(markdown, md);
+  }
   return exitCodeFor(o.report);
 }
 
@@ -357,10 +376,11 @@ async function replay(args: string[]): Promise<number> {
       route: { type: "string", multiple: true, default: [] as string[] },
       "unsafe-methods": { type: "string", multiple: true, default: [] as string[] },
       header: { type: "string", multiple: true, default: [] as string[] },
-      concurrency: { type: "string", default: "8" },
+      concurrency: { type: "string" },
       timeout: { type: "string", default: "10000" },
       "allow-prod": { type: "boolean", default: false },
       original: { type: "string" },
+      reset: { type: "string" },
     },
   });
   if (values.help) {
@@ -384,8 +404,9 @@ async function replay(args: string[]): Promise<number> {
     routes: values.route,
     unsafe: values["unsafe-methods"],
     headers,
-    concurrency: parsePositiveInt(values.concurrency, "--concurrency"),
+    ...(values.concurrency !== undefined ? { concurrency: parsePositiveInt(values.concurrency, "--concurrency") } : {}),
     timeoutMs: parsePositiveInt(values.timeout, "--timeout"),
+    ...(values.reset ? { reset: values.reset } : {}),
     compareHeaders: values["compare-header"],
     ...(values.config ? { config: values.config } : {}),
     noNoise: values["no-noise"],
@@ -393,7 +414,7 @@ async function replay(args: string[]): Promise<number> {
     dirs: { tapes: values.dir, runs: values["runs-dir"], noise: values["noise-dir"] },
     ...(values.json ? {} : { onNote: (m: string) => console.error(m) }),
   });
-  return printOutcome(outcome, true, values.json);
+  return printOutcome(outcome, true, values.json, values.markdown);
 }
 
 async function diff(args: string[]): Promise<number> {
@@ -422,7 +443,7 @@ async function diff(args: string[]): Promise<number> {
     return c.outcome === "replayed" && c.mismatches.length === 0 ? 0 : 1;
   }
   const outcome = await runDiff({ ...common, routes: values.route, compareHeaders: values["compare-header"] });
-  return printOutcome(outcome, false, values.json);
+  return printOutcome(outcome, false, values.json, values.markdown);
 }
 
 async function shadowStatus(args: string[]): Promise<number> {
@@ -739,6 +760,34 @@ async function cutover(args: string[]): Promise<number> {
   return final.phase === "rolled_back" ? 3 : 0;
 }
 
+const DASHBOARD_HELP = `Usage: gerra dashboard [--port <n>] [--config <path>]
+
+Serves a local, read-only web dashboard of .gerra/ in the current directory: tapes, replay runs and
+their differences, single exchanges side by side, learned noise, and live shadow and cutover sessions.
+It lives in a separate package; install it next to the CLI (npm i -D @gerra/dashboard) or run it
+directly with npx @gerra/dashboard.`;
+
+async function dashboard(args: string[]): Promise<number> {
+  if (args.includes("-h") || args.includes("--help")) {
+    console.log(DASHBOARD_HELP);
+    return 0;
+  }
+  // Optional: the dashboard depends on this CLI, so the CLI can't depend on it back.
+  const spec = "@gerra/dashboard/package.json";
+  let bin: string;
+  try {
+    const require = createRequire(import.meta.url);
+    const pkgPath = require.resolve(spec);
+    bin = join(dirname(pkgPath), "dist", "index.js");
+  } catch {
+    console.error(`gerra dashboard: @gerra/dashboard isn't installed. Run it with:\n\n  npx @gerra/dashboard ${args.join(" ")}`.trimEnd());
+    return 2;
+  }
+  const { spawnSync } = await import("node:child_process");
+  const result = spawnSync(process.execPath, [bin, ...args], { stdio: "inherit" });
+  return result.status ?? 1;
+}
+
 async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
   if (command === undefined || command === "-h" || command === "--help") {
@@ -757,6 +806,7 @@ async function main(argv: string[]): Promise<number> {
     if (command === "diff") return await diff(rest);
     if (command === "shadow") return await shadow(rest);
     if (command === "cutover") return await cutover(rest);
+    if (command === "dashboard") return await dashboard(rest);
   } catch (err) {
     // parseArgs throws TypeErrors with ERR_PARSE_ARGS_* codes for bad flags.
     const code = (err as NodeJS.ErrnoException).code ?? "";

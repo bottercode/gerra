@@ -3,7 +3,7 @@ import http from "node:http";
 import https from "node:https";
 import type { AddressInfo } from "node:net";
 import { performance } from "node:perf_hooks";
-import { TAPE_VERSION, encodeBody, type Exchange, type RecordedBody } from "@gerra/core";
+import { EFFECTS_HEADER, TAPE_VERSION, encodeBody, takeEffects, type Exchange, type RecordedBody } from "@gerra/core";
 
 export interface ProxyOptions {
   /** Service to forward to (the primary), e.g. `http://localhost:3000`. A path prefix is allowed. */
@@ -19,6 +19,11 @@ export interface ProxyOptions {
    */
   onExchange?: (ex: Exchange, meta: ServedMeta) => void;
   onError?: (err: Error, method: string, url: string) => void;
+  /**
+   * Ask the primary to report its side effects (`x-gerra-effects: 1`), and keep what it reports in each
+   * exchange. Off for cutover, which serves production traffic. The effects header never reaches clients.
+   */
+  captureEffects?: boolean;
   /** A second upstream (cutover's candidate). Requests go to it when `choose` says so. */
   alternate?: string;
   /** Pick the upstream for each request. Only consulted when `alternate` is set. */
@@ -43,6 +48,9 @@ export interface Proxy {
 }
 
 export const DEFAULT_MAX_BODY_BYTES = 10 * 1024 * 1024;
+
+/** Largest response header block accepted from upstreams (effects can be big). */
+export const MAX_HEADER_BYTES = 1024 * 1024;
 
 // RFC 9110 §7.6.1: connection-specific headers that a proxy must not forward.
 const HOP_BY_HOP = new Set([
@@ -178,6 +186,8 @@ export async function startProxy(opts: ProxyOptions): Promise<Proxy> {
       }
       if (req.headers.host) headers["x-forwarded-host"] = req.headers.host;
       headers["x-forwarded-proto"] = "http";
+      if (opts.captureEffects) headers[EFFECTS_HEADER] = "1";
+      else delete headers[EFFECTS_HEADER];
       return headers;
     };
 
@@ -191,12 +201,15 @@ export async function startProxy(opts: ProxyOptions): Promise<Proxy> {
         path: up.basePath + url,
         headers: headersFor(up),
         agent: up.agent,
+        // Effects travel in a response header that can be larger than Node's 16 KB default.
+        maxHeaderSize: MAX_HEADER_BYTES,
       });
       current = upstream;
 
       upstream.on("response", (upRes) => {
         const status = upRes.statusCode ?? 502;
         const resHeaders = forwardableHeaders(upRes.headers);
+        const effects = takeEffects(resHeaders);
         res.writeHead(status, upRes.statusMessage, resHeaders);
         upRes.on("data", (chunk: Buffer) => resBody.push(chunk));
         upRes.pipe(res);
@@ -215,7 +228,7 @@ export async function startProxy(opts: ProxyOptions): Promise<Proxy> {
               headers: flattenHeaders(forwardableHeaders(req.headers)),
               body: reqBody.body(),
             },
-            response: { status, headers: flattenHeaders(resHeaders), body: resBody.body() },
+            response: { status, headers: flattenHeaders(resHeaders), body: resBody.body(), ...(effects ? { effects } : {}) },
             latencyMs: Math.round((performance.now() - started) * 100) / 100,
           };
           try {

@@ -1,0 +1,133 @@
+name: gerra replay
+description: Replay recorded traffic against your rewrite on every pull request and report every response that changed.
+author: bottercode
+branding:
+  icon: check-circle
+  color: green
+
+inputs:
+  tape:
+    description: Tape to replay (a name under .gerra/tapes, committed to the repository).
+    required: true
+  against:
+    description: URL of the candidate service, e.g. http://localhost:4000 (or :4000).
+    required: true
+  start:
+    description: Command that starts the candidate in the background, e.g. "go run ./cmd/server". Leave empty if an earlier step started it.
+    required: false
+    default: ""
+  wait:
+    description: Seconds to wait for the candidate to answer after starting it.
+    required: false
+    default: "60"
+  original:
+    description: URL of the original service, to learn noise by sending each request to it twice (it must be running).
+    required: false
+    default: ""
+  reset:
+    description: Shell command run before the replay to put the services in the recorded state, e.g. "npm run seed".
+    required: false
+    default: ""
+  args:
+    description: Extra arguments for gerra replay, parsed like a shell command line, e.g. '--unsafe-methods POST --route "GET /posts/:id"'.
+    required: false
+    default: ""
+  working-directory:
+    description: Directory with .gerra/ and gerra.config.json.
+    required: false
+    default: "."
+  version:
+    description: "@gerra/cli version to run with npx."
+    required: false
+    default: latest
+  gerra:
+    description: Command that runs gerra, instead of npx (e.g. "node packages/cli/dist/index.js" to test a local build).
+    required: false
+    default: ""
+  comment:
+    description: On pull requests, post the report as a comment (updated on every push). Needs pull-requests write permission.
+    required: false
+    default: "true"
+  fail-on-diff:
+    description: Fail the job when any response differs or errors.
+    required: false
+    default: "true"
+  token:
+    description: Token for the pull request comment.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  exit-code:
+    description: "gerra replay's exit code: 0 equivalent, 1 differences or errors."
+    value: ${{ steps.replay.outputs.exit-code }}
+  report:
+    description: Path of the Markdown report.
+    value: ${{ steps.paths.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    - id: paths
+      shell: bash
+      run: |
+        echo "report=$RUNNER_TEMP/gerra-${{ github.run_id }}-${{ github.action }}.md" >> "$GITHUB_OUTPUT"
+        echo "log=$RUNNER_TEMP/gerra-candidate-${{ github.action }}.log" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/setup-node@v4
+      if: inputs.gerra == ''
+      with:
+        node-version: 24
+
+    - name: Start the candidate
+      if: inputs.start != ''
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        START: ${{ inputs.start }}
+        AGAINST: ${{ inputs.against }}
+        WAIT: ${{ inputs.wait }}
+        LOG: ${{ steps.paths.outputs.log }}
+      run: ${{ github.action_path }}/action/start.sh
+
+    - id: replay
+      name: gerra replay
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        GERRA: ${{ inputs.gerra != '' && inputs.gerra || format('npx -y @gerra/cli@{0}', inputs.version) }}
+        TAPE: ${{ inputs.tape }}
+        AGAINST: ${{ inputs.against }}
+        ORIGINAL: ${{ inputs.original }}
+        RESET: ${{ inputs.reset }}
+        ARGS: ${{ inputs.args }}
+        REPORT: ${{ steps.paths.outputs.report }}
+      run: ${{ github.action_path }}/action/replay.sh
+
+    - name: Comment on the pull request
+      if: inputs.comment == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        PR: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+        TAPE: ${{ inputs.tape }}
+        REPORT: ${{ steps.paths.outputs.report }}
+      # A fork's token can't comment; the job summary still has the report.
+      continue-on-error: true
+      run: ${{ github.action_path }}/action/comment.sh
+
+    - name: Candidate output
+      if: always() && inputs.start != ''
+      shell: bash
+      run: |
+        echo "::group::Candidate output"
+        cat "${{ steps.paths.outputs.log }}" 2>/dev/null || true
+        echo "::endgroup::"
+
+    - name: Verdict
+      if: inputs.fail-on-diff == 'true' && steps.replay.outputs.exit-code != '0'
+      shell: bash
+      run: |
+        echo "::error::gerra found responses that differ from the tape (see the job summary)."
+        exit 1

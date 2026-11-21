@@ -1,5 +1,5 @@
 import { brotliDecompressSync, gunzipSync, inflateSync, zstdDecompressSync } from "node:zlib";
-import { diffJson, groupKey, type Json } from "./diff.js";
+import { canonicalJson, diffJson, groupKey, type Json } from "./diff.js";
 import { DEFAULT_COMPARED_HEADERS, normalizeRule, normalizedBy, ruleMatches, type CompareRules, type IgnoreReason } from "./rules.js";
 import { MASK, decodeBody, type RecordedResponse } from "./tape.js";
 
@@ -63,7 +63,25 @@ function rawMismatches(original: RecordedResponse, candidate: RecordedResponse, 
   }
   const unordered = new Set((options.unordered ?? []).map((p) => groupKey(normalizeRule(p).replace(/^body /, ""))));
   out.push(...compareBodies(original, candidate, unordered));
+  // Effects come from JSON, so they are JSON values.
+  out.push(...compareEffects(original.effects as Json[] | undefined, candidate.effects as Json[] | undefined));
   return out;
+}
+
+/**
+ * Effects are only compared when both services reported them (a candidate without the SDK says nothing,
+ * which isn't a difference). Order is ignored: concurrent calls finish in any order, and what matters is
+ * that the same calls were made.
+ */
+function compareEffects(original: readonly Json[] | undefined, candidate: readonly Json[] | undefined): Mismatch[] {
+  if (!original || !candidate) return [];
+  const sorted = (xs: readonly Json[]) => [...xs].map((x) => [canonicalJson(x), x] as const).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, x]) => x);
+  return diffJson(sorted(original), sorted(candidate), { maskedValue: MASK }).map((d) => ({
+    at: `effects ${d.path}`,
+    kind: d.kind,
+    original: d.original,
+    candidate: d.candidate,
+  }));
 }
 
 function headerValue(headers: Record<string, string>, name: string): string | undefined {

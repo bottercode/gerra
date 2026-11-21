@@ -49,7 +49,7 @@ function lastKey(path: string): string | null {
 /** Which normalizer, if any, treats a changed body value as equivalent. `at` is the mismatch location (`body $.x`). */
 export function normalizedBy(at: string, original: unknown, candidate: unknown, normalizers: Partial<Normalizers> = {}): keyof Normalizers | null {
   const n = { ...DEFAULT_NORMALIZERS, ...normalizers };
-  if (!at.startsWith("body $")) return null;
+  if (!at.startsWith("body $") && !at.startsWith("effects $")) return null;
   if (typeof original === "string" && typeof candidate === "string") {
     if (n.timestamps && ISO_DATETIME.test(original) && ISO_DATETIME.test(candidate)) {
       if (original.replace(/\d/g, "0") === candidate.replace(/\d/g, "0")) return "timestamps";
@@ -60,7 +60,7 @@ export function normalizedBy(at: string, original: unknown, candidate: unknown, 
     }
   }
   if (n.ids && typeof original === typeof candidate && (typeof original === "number" || typeof original === "string")) {
-    const key = lastKey(at.slice("body ".length));
+    const key = lastKey(at.slice(at.indexOf(" ") + 1));
     if (key !== null && ID_KEY.test(key)) return "ids";
   }
   return null;
@@ -128,6 +128,11 @@ export interface RouteConfig {
 }
 
 export interface GerraConfig {
+  /**
+   * Shell command run before every replay to put the services back in the state the tape was recorded
+   * in (reseed a database, restore a snapshot). Same as `gerra replay --reset "<cmd>"`.
+   */
+  reset?: string;
   mask?: { headers?: string[]; fields?: string[] };
   compare?: { headers?: string[] };
   ignore?: string[];
@@ -185,8 +190,12 @@ export function parseConfig(text: string, source = "gerra.config.json"): GerraCo
   }
   try {
     if (!isObject(raw)) fail("config", "must be a JSON object");
-    checkKeys(raw, ["$schema", "mask", "compare", "ignore", "unordered", "normalizers", "routes"], "config");
+    checkKeys(raw, ["$schema", "reset", "mask", "compare", "ignore", "unordered", "normalizers", "routes"], "config");
     const config: GerraConfig = {};
+    if (raw.reset !== undefined) {
+      if (typeof raw.reset !== "string" || raw.reset.trim() === "") fail("reset", "must be a non-empty shell command");
+      config.reset = raw.reset;
+    }
     if (raw.mask !== undefined) {
       if (!isObject(raw.mask)) fail("mask", "must be an object");
       checkKeys(raw.mask, ["headers", "fields"], "mask");

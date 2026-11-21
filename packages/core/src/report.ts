@@ -14,6 +14,10 @@ export interface RunHeader {
   tape: string;
   against: string;
   startedAt: string;
+  /** Reset command that ran before the replay, if any. */
+  reset?: string;
+  /** Route filters the replay was limited to, if any. */
+  routes?: string[];
   /** Noise profile that was applied to this run, so `gerra diff` reproduces the same report. */
   noise?: NoiseProfile;
 }

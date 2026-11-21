@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  # Runs this repository's GitHub Action against the express-pricing example. Its rewrite rounds one
+  # discount differently, so the action must report a difference: fail-on-diff is off and the exit code checked.
+  action:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Record a tape from the original
+        working-directory: examples/express-pricing
+        run: ./record-sample.sh
+      - id: gerra
+        uses: ./
+        with:
+          tape: checkout
+          against: :4000
+          start: node rewrite.js
+          args: --header "authorization: Bearer test"
+          working-directory: examples/express-pricing
+          gerra: node ../../packages/cli/dist/index.js
+          fail-on-diff: "false"
+      - name: The rounding difference was found
+        run: test "${{ steps.gerra.outputs.exit-code }}" = 1

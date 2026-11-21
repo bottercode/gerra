@@ -4,6 +4,7 @@ Optional. `gerra record`, `replay` and `diff` read `./gerra.config.json` if it e
 
 ```json
 {
+  "reset": "npm run seed:test",
   "mask": { "headers": ["x-api-key"], "fields": ["email", "password"] },
   "compare": { "headers": ["cache-control"] },
   "ignore": ["header x-request-id", "$..traceId"],
@@ -18,6 +19,7 @@ Optional. `gerra record`, `replay` and `diff` read `./gerra.config.json` if it e
 
 | Key | Used by | Meaning |
 | --- | --- | --- |
+| `reset` | replay | Shell command run before every replay to put the services in the recorded state, like `--reset` (which overrides it). A failing reset stops the replay. |
 | `mask.headers`, `mask.fields` | record | Added to `--mask-header` / `--mask-field`. `authorization`, `cookie` and `set-cookie` are always masked. |
 | `compare.headers` | replay, diff | Response headers compared in addition to `content-type` and `location`. |
 | `ignore` | replay, diff | Places whose differences don't count. |
@@ -30,6 +32,7 @@ Optional. `gerra record`, `replay` and `diff` read `./gerra.config.json` if it e
 `ignore` entries use the same names the report prints:
 
 - `status`, `header <name>`, `body` (the whole body), `body (text)`, `body (bytes)`
+- `effects $[*].body.traceId` and the like for [side effects](effects.md)
 - `body $.path.to.field`, or just `$.path.to.field`
 - `[*]` for any array index (`$.lines[*].note`), `..` for any depth (`$..traceId`)
 - A place covers everything under it: `$.meta` ignores `$.meta.took`.

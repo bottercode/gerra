@@ -1,0 +1,17 @@
+{
+  "name": "@gerra/example-python-todos",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A Python todo API rewritten in Node, verified with gerra: writes replayed with --reset, webhooks compared as side effects.",
+  "type": "module",
+  "scripts": {
+    "seed": "python3 seed.py data/todos.db",
+    "start": "DB=data/todos.db WEBHOOK_URL=http://127.0.0.1:9900/hooks PORT=3200 python3 app.py",
+    "start:rewrite": "DB=data/rewrite.db WEBHOOK_URL=http://127.0.0.1:9900/hooks PORT=4200 node --import @gerra/sdk-node/register rewrite/server.mjs",
+    "sink": "node webhook-sink.mjs",
+    "demo": "./demo.sh"
+  },
+  "dependencies": {
+    "@gerra/sdk-node": "workspace:*"
+  }
+}

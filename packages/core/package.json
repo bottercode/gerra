@@ -1,6 +1,6 @@
 {
   "name": "@gerra/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Tape format, diff and noise-filtering engine for gerra.",
   "keywords": [
     "gerra",

@@ -291,6 +291,7 @@ export async function startShadow(opts: ShadowOptions): Promise<Shadow> {
     ...(opts.host !== undefined ? { host: opts.host } : {}),
     ...(opts.maxBodyBytes !== undefined ? { maxBodyBytes: opts.maxBodyBytes } : {}),
     ...(opts.onError ? { onError: opts.onError } : {}),
+    captureEffects: true,
     onExchange: mirror,
   });
   listen = proxy.url;

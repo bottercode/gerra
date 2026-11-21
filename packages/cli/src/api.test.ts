@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { serializeExchange, type Exchange } from "@gerra/core";
 import { UsageError, compareExchange, getExchanges, runDiff, runReplay } from "./api.js";
 import { loadNoise } from "./noise.js";
-import { formatExchangeComparison } from "./report.js";
+import { formatExchangeComparison, formatReportMarkdown } from "./report.js";
 
 const ex = (id: string, method: string, path: string, body: unknown): Exchange => ({
   v: 1,
@@ -94,6 +94,24 @@ describe("runDiff and compareExchange", () => {
   });
 });
 
+describe("formatReportMarkdown", () => {
+  it("gives a verdict, a route table and the differences with an example", async () => {
+    const o = await runReplay({ tape: "shop", against: url, routes: ["GET /products/:id"], dirs });
+    const md = formatReportMarkdown(o.report, o);
+    expect(md).toContain("### gerra replay: `shop`");
+    expect(md).toContain("❌ **Not equivalent**: 1 different, 0 errors out of 2 replayed");
+    expect(md).toContain("| ❌ | `GET /products/:id` | 1 | 1 | 0 | 0 |");
+    expect(md).toContain("- `body $.price` ×1 e.g. `GET /products/2`: `59.5` → `59.95` (ex_aaaa2222)");
+    expect(md).toContain(`<sub>Run saved to \`${o.run}\`</sub>`);
+
+    const passing = { summary: { total: 1, identical: 1, different: 0, errors: 0, skipped: 0 }, latency: { original: null, candidate: null }, routes: [] };
+    const okMd = formatReportMarkdown(passing, { tape: "a|b", against: url });
+    expect(okMd).toContain("✅ **All 1 replayed exchanges match the tape**");
+    expect(okMd).toContain("`a\\|b`");
+    expect(okMd).not.toContain("<details>");
+  });
+});
+
 describe("getExchanges", () => {
   it("returns recorded exchanges for routes, limited", async () => {
     const r = await getExchanges({ tape: "shop", routes: ["GET /products/:id"], limit: 1, dirs });
@@ -101,3 +119,75 @@ describe("getExchanges", () => {
     expect(r.exchanges.map((e) => e.request.path)).toEqual(["/products/1"]);
   });
 });
+
+describe("stateful replay", () => {
+  // A todo service whose state lives in a file, so a shell command can reset it.
+  let todos: http.Server;
+  let todosUrl: string;
+  let stateFile: string;
+  beforeEach(async () => {
+    stateFile = join(dir, "todos.json");
+    await writeFile(stateFile, "[]");
+    const { readFile } = await import("node:fs/promises");
+    todos = http.createServer((req, res) => {
+      let body = "";
+      req.on("data", (c: Buffer) => (body += c));
+      req.on("end", async () => {
+        const items = JSON.parse(await readFile(stateFile, "utf8")) as { id: number; title: string }[];
+        if (req.method === "POST") {
+          const item = { id: items.length + 1, title: (JSON.parse(body) as { title: string }).title };
+          await writeFile(stateFile, JSON.stringify([...items, item]));
+          res.writeHead(201, { "content-type": "application/json" });
+          return res.end(JSON.stringify(item));
+        }
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(items));
+      });
+    });
+    await new Promise<void>((r) => todos.listen(0, "127.0.0.1", r));
+    todosUrl = `http://127.0.0.1:${(todos.address() as AddressInfo).port}`;
+    const post = (id: string, title: string, n: number): Exchange => ({
+      ...ex(id, "POST", "/todos", { id: n, title }),
+      request: { method: "POST", path: "/todos", query: "", headers: { "content-type": "application/json" }, body: { encoding: "utf8", data: JSON.stringify({ title }) } },
+      response: { status: 201, headers: { "content-type": "application/json" }, body: { encoding: "utf8", data: JSON.stringify({ id: n, title }) } },
+    });
+    const recorded = [
+      post("ex_w1", "milk", 1),
+      post("ex_w2", "eggs", 2),
+      post("ex_w3", "bread", 3),
+      ex("ex_r1", "GET", "/todos", [{ id: 1, title: "milk" }, { id: 2, title: "eggs" }, { id: 3, title: "bread" }]),
+    ];
+    await writeFile(join(dirs.tapes, "todos.jsonl"), recorded.map(serializeExchange).join("\n") + "\n");
+  });
+  afterEach(async () => {
+    todos.closeAllConnections();
+    await new Promise((r) => todos.close(r));
+  });
+
+  it("replays writes in recorded order and resets state first", async () => {
+    const notes: string[] = [];
+    const reset = `node -e "require('fs').writeFileSync(process.argv[1], '[]')" ${JSON.stringify(stateFile)}`;
+    const first = await runReplay({ tape: "todos", against: todosUrl, unsafe: ["POST"], reset, dirs, onNote: (m) => notes.push(m) });
+    expect(first.report.summary).toMatchObject({ total: 4, identical: 4 });
+    expect(notes.some((n) => n.startsWith("Resetting:"))).toBe(true);
+    expect(notes.some((n) => /3 writes: sending requests one at a time/.test(n))).toBe(true);
+
+    // Without a reset the second run sees the first run's todos: ids 4, 5, 6 and six items.
+    const dirty = await runReplay({ tape: "todos", against: todosUrl, unsafe: ["POST"], dirs });
+    expect(dirty.report.summary.different).toBe(4);
+    const again = await runReplay({ tape: "todos", against: todosUrl, unsafe: ["POST"], reset, dirs });
+    expect(again.report.summary.identical).toBe(4);
+  });
+
+  it("reads reset from the config and stops when it fails", async () => {
+    const config = join(dir, "gerra.config.json");
+    await writeFile(config, JSON.stringify({ reset: "echo seeding failed >&2; exit 3" }));
+    await expect(runReplay({ tape: "todos", against: todosUrl, unsafe: ["POST"], config, dirs })).rejects.toThrow(/exited with code 3: .*\nseeding failed/s);
+    expect(await readdirOrEmpty(dirs.runs)).toEqual([]);
+  });
+});
+
+async function readdirOrEmpty(path: string): Promise<string[]> {
+  const { readdir } = await import("node:fs/promises");
+  return readdir(path).catch(() => []);
+}

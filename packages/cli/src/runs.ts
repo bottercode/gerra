@@ -35,3 +35,26 @@ export async function latestRunPath(dir: string, tape: string): Promise<string |
 export async function loadRun(path: string): Promise<Run> {
   return parseRun(await readFile(path, "utf8"));
 }
+
+export interface RunFile {
+  /** File name, e.g. `2026-11-21T19-14-18.899Z.jsonl`. */
+  file: string;
+  path: string;
+}
+
+/** Saved runs of a tape, newest first. */
+export async function listRunFiles(dir: string, tape: string): Promise<RunFile[]> {
+  assertTapeName(tape);
+  let files: string[];
+  try {
+    files = await readdir(join(dir, tape));
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw err;
+  }
+  return files
+    .filter((f) => f.endsWith(".jsonl"))
+    .sort()
+    .reverse()
+    .map((file) => ({ file, path: join(dir, tape, file) }));
+}

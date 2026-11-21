@@ -70,6 +70,7 @@ export async function startRecorder(opts: RecorderOptions): Promise<Recorder> {
     ...(opts.host !== undefined ? { host: opts.host } : {}),
     ...(opts.maxBodyBytes !== undefined ? { maxBodyBytes: opts.maxBodyBytes } : {}),
     ...(opts.onError ? { onError: opts.onError } : {}),
+    captureEffects: true,
     onExchange: (raw) => {
       if (tapeError) return;
       const ex = maskExchange(raw, maskedHeaders, maskFields);
