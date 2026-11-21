@@ -1,11 +1,11 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MASK, decodeBody, parseTape, type Exchange } from "@gerra/core";
-import { startRecorder, type Recorder } from "./record.js";
+import { TapeExistsError, startRecorder, type Recorder } from "./record.js";
 
 /** Upstream used by the tests. Each route exercises one proxy behavior. */
 function startUpstream(): Promise<{ server: http.Server; url: string; seen: http.IncomingHttpHeaders[] }> {
@@ -216,14 +216,31 @@ describe("startRecorder", () => {
     expect(recorder.recorded).toBe(1);
   });
 
-  it("appends to an existing tape across sessions", async () => {
+  it("refuses an existing tape unless asked to append or overwrite", async () => {
     recorder = await startRecorder({ target: upstream.url, tapePath: tape, port: 0 });
     await (await fetch(`${recorder.url}/a`)).text();
     await recorder.close();
-    recorder = await startRecorder({ target: upstream.url, tapePath: tape, port: 0 });
+    await expect(startRecorder({ target: upstream.url, tapePath: tape, port: 0 })).rejects.toBeInstanceOf(TapeExistsError);
+    expect((await readTape()).map((e) => e.request.path)).toEqual(["/a"]);
+
+    recorder = await startRecorder({ target: upstream.url, tapePath: tape, port: 0, ifExists: "append" });
     await (await fetch(`${recorder.url}/b`)).text();
     await recorder.close();
     expect((await readTape()).map((e) => e.request.path)).toEqual(["/a", "/b"]);
+
+    recorder = await startRecorder({ target: upstream.url, tapePath: tape, port: 0, ifExists: "overwrite" });
+    await (await fetch(`${recorder.url}/c`)).text();
+    await recorder.close();
+    expect((await readTape()).map((e) => e.request.path)).toEqual(["/c"]);
+  });
+
+  it("records into an existing empty tape without asking", async () => {
+    await mkdir(join(dir, "tapes"));
+    await writeFile(tape, "");
+    recorder = await startRecorder({ target: upstream.url, tapePath: tape, port: 0 });
+    await (await fetch(`${recorder.url}/a`)).text();
+    await recorder.close();
+    expect((await readTape()).map((e) => e.request.path)).toEqual(["/a"]);
   });
 
   it("rejects non-http targets", async () => {

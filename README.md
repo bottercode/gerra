@@ -39,7 +39,7 @@ pnpm gerra record --target http://localhost:3000 --port 8080 --tape checkout --m
 pnpm gerra tapes            # list tapes with request counts per route (--json for machines)
 ```
 
-Each request/response pair is one JSON line in `.gerra/tapes/<tape>.jsonl`: method, path, query, headers, body (UTF-8 or base64), status, response headers and body, and latency. `authorization`, `cookie` and `set-cookie` are always masked in the tape. Add more with `--mask-header` and mask JSON body fields with `--mask-field`. Your clients still get the real, unmasked responses. `gerra record --help` lists all options.
+Each request/response pair is one JSON line in `.gerra/tapes/<tape>.jsonl`: method, path, query, headers, body (UTF-8 or base64), status, response headers and body, and latency. `authorization`, `cookie` and `set-cookie` are always masked in the tape. Add more with `--mask-header` and mask JSON body fields with `--mask-field`. Your clients still get the real, unmasked responses. An existing tape is never mixed into silently: pass `--append` to add to it or `--overwrite` to replace it. `gerra record --help` lists all options.
 
 ## Usable today: replay and diff
 

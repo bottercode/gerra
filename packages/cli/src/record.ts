@@ -1,4 +1,4 @@
-import { createWriteStream, mkdirSync } from "node:fs";
+import { createWriteStream, mkdirSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 import { finished } from "node:stream/promises";
 import { DEFAULT_MASKED_HEADERS, maskExchange, serializeExchange, type Exchange } from "@gerra/core";
@@ -9,8 +9,13 @@ export { DEFAULT_MAX_BODY_BYTES };
 export interface RecorderOptions {
   /** Service to proxy to, e.g. `http://localhost:3000`. A path prefix is allowed. */
   target: string;
-  /** Path of the `.jsonl` tape to append to (created with parent dirs if missing). */
+  /** Path of the `.jsonl` tape (created with parent dirs if missing). */
   tapePath: string;
+  /**
+   * What to do when the tape already has exchanges: refuse (the default, so a re-recording can't
+   * silently mix with an old one), add to it, or replace it.
+   */
+  ifExists?: "error" | "append" | "overwrite";
   /** Port to listen on; 0 picks a free port. */
   port: number;
   host?: string;
@@ -22,6 +27,13 @@ export interface RecorderOptions {
   maxBodyBytes?: number;
   onExchange?: (ex: Exchange) => void;
   onError?: (err: Error, method: string, url: string) => void;
+}
+
+/** The tape already has exchanges and neither appending nor overwriting was asked for. */
+export class TapeExistsError extends Error {
+  constructor(readonly tapePath: string) {
+    super(`${tapePath} already exists and isn't empty`);
+  }
 }
 
 export interface Recorder {
@@ -40,8 +52,12 @@ export async function startRecorder(opts: RecorderOptions): Promise<Recorder> {
     throw new Error(`--target must be an http(s) URL, got "${opts.target}"`);
   }
 
+  const ifExists = opts.ifExists ?? "error";
+  const existing = fileSize(opts.tapePath);
+  if (existing > 0 && ifExists === "error") throw new TapeExistsError(opts.tapePath);
+
   mkdirSync(dirname(opts.tapePath), { recursive: true });
-  const tape = createWriteStream(opts.tapePath, { flags: "a" });
+  const tape = createWriteStream(opts.tapePath, { flags: ifExists === "overwrite" ? "w" : "a" });
   let tapeError: Error | null = null;
   tape.on("error", (err) => {
     tapeError = err;
@@ -80,4 +96,12 @@ export async function startRecorder(opts: RecorderOptions): Promise<Recorder> {
       return closing;
     },
   };
+}
+
+function fileSize(path: string): number {
+  try {
+    return statSync(path).size;
+  } catch {
+    return 0;
+  }
 }

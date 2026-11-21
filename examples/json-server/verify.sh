@@ -22,9 +22,8 @@ stop_all() { cleanup; pids=(); }
 
 record() { # tape, traffic mode
   start_original
-  rm -f "$ROOT/.gerra/tapes/$1.jsonl" # tapes are append-only; start this one fresh
   : >"$LOGS/record.log"
-  (cd "$ROOT" && exec $GERRA record --target http://localhost:$ORIG --port $PROXY --tape "$1" >>"$LOGS/record.log" 2>&1) & local rec=$!
+  (cd "$ROOT" && exec $GERRA record --target http://localhost:$ORIG --port $PROXY --tape "$1" --overwrite >>"$LOGS/record.log" 2>&1) & local rec=$!
   # wait for the proxy without sending a request through it (it would be recorded)
   for _ in $(seq 100); do grep -q "Send traffic" "$LOGS/record.log" && break; sleep 0.1; done
   node traffic.mjs "$2" "http://localhost:$PROXY" >/dev/null

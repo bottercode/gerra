@@ -25,6 +25,14 @@ describe("routeOf", () => {
     expect(routeOf("GET", "/v2/items")).toBe("GET /v2/items");
     expect(routeOf("GET", "/")).toBe("GET /");
   });
+
+  it("decodes percent-escapes before grouping", () => {
+    expect(routeOf("GET", "/po%73ts/%32")).toBe("GET /posts/:id");
+    expect(routeOf("GET", "/caf%C3%A9/menu")).toBe("GET /café/menu");
+    expect(routeOf("GET", "/files/a%2Fb")).toBe("GET /files/a%2Fb");
+    expect(routeOf("GET", "/%zz")).toBe("GET /%zz");
+    expect(routeOf("GET", "/posts/%E0%A4")).toBe("GET /posts/%E0%A4");
+  });
 });
 
 describe("summarizeRoutes", () => {

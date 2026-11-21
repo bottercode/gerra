@@ -12,7 +12,7 @@ The steps below use the CLI (`gerra …`; inside the gerra repo itself, `pnpm ge
 ## Before the first route
 
 1. **Agree on the target** with the user: language, framework, where the candidate lives, and the port it runs on (e.g. `:4000`, next to the original on `:3000`). Ask how to run the original if you don't know.
-2. **Take inventory.** `gerra tapes <tape>` lists routes with request counts and status codes. If there's no tape, ask the user to record one: `gerra record --target <original> --tape <name>`, then send realistic traffic through it.
+2. **Take inventory.** `gerra tapes <tape>` lists routes with request counts and status codes. If there's no tape, ask the user to record one: `gerra record --target <original> --tape <name>`, then send realistic traffic through it (`--append` adds more traffic to an existing tape later).
 3. **Check the tape against the original itself, and learn noise:**
    `gerra replay <tape> --against <original> --original <original>`
    This must PASS. Values that change on every call (ids, timestamps, expiry times) are learned as noise and ignored from now on. If it doesn't pass, stop and tell the user. A tape the original can't pass can't judge a rewrite.

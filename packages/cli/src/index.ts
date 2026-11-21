@@ -12,7 +12,7 @@ import { UsageError, compareExchange, exitCodeFor, normalizeUrl, reportText, run
 import { DEFAULT_CONFIG_FILE, loadConfig } from "./config.js";
 import { formatExchangeComparison } from "./report.js";
 import { DEFAULT_NOISE_DIR, loadNoise } from "./noise.js";
-import { DEFAULT_MAX_BODY_BYTES, startRecorder } from "./record.js";
+import { DEFAULT_MAX_BODY_BYTES, TapeExistsError, startRecorder } from "./record.js";
 import { DEFAULT_RUNS_DIR } from "./runs.js";
 import { DEFAULT_SHADOW_DIR, shadowDir, startShadow, type RecentEntry } from "./shadow.js";
 import { formatShadowState, isAlive, readShadowState } from "./shadow-status.js";
@@ -42,7 +42,7 @@ Status: early development. See docs/PLAN.md.`;
 
 const RECORD_HELP = `Usage: gerra record --target <url> [options]
 
-Runs a reverse proxy that forwards every request to --target and appends
+Runs a reverse proxy that forwards every request to --target and writes
 each request/response pair to .gerra/tapes/<tape>.jsonl. Stop with Ctrl-C;
 in-flight requests finish and the tape is flushed before exit.
 
@@ -50,7 +50,9 @@ Options:
   --target <url>          Service to record (required), e.g. http://localhost:3000
   --port <n>              Port to listen on (default 8080)
   --host <addr>           Address to bind (default 127.0.0.1; use 0.0.0.0 to expose)
-  --tape <name>           Tape name (default "default"); appends if it exists
+  --tape <name>           Tape name (default "default")
+  --append                Add to the tape if it already exists
+  --overwrite             Replace the tape if it already exists (without either, an existing tape is an error)
   --dir <path>            Tapes directory (default ${DEFAULT_TAPES_DIR})
   --mask-header <name>    Extra header to mask (repeatable). Always masked: ${DEFAULT_MASKED_HEADERS.join(", ")}
   --mask-field <name>     JSON body field to mask at any depth (repeatable), e.g. password, email
@@ -228,6 +230,8 @@ async function record(args: string[]): Promise<number> {
       "mask-field": { type: "string", multiple: true, default: [] as string[] },
       "max-body-bytes": { type: "string", default: String(DEFAULT_MAX_BODY_BYTES) },
       config: { type: "string" },
+      append: { type: "boolean", default: false },
+      overwrite: { type: "boolean", default: false },
       quiet: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -237,6 +241,7 @@ async function record(args: string[]): Promise<number> {
     return 0;
   }
   if (!values.target) throw new UsageError(`--target is required\n\n${RECORD_HELP}`);
+  if (values.append && values.overwrite) throw new UsageError("--append and --overwrite can't be used together");
   const target = normalizeUrl(values.target);
   const path = tapePath(values.dir, values.tape);
   const { config } = await loadConfig(values.config);
@@ -244,6 +249,7 @@ async function record(args: string[]): Promise<number> {
   const recorder = await startRecorder({
     target,
     tapePath: path,
+    ifExists: values.append ? "append" : values.overwrite ? "overwrite" : "error",
     port: parsePositiveInt(values.port, "--port", true),
     host: values.host,
     maskHeaders: [...(config.mask?.headers ?? []), ...values["mask-header"]],
@@ -256,6 +262,11 @@ async function record(args: string[]): Promise<number> {
           console.log(`  ${ex.request.method} ${ex.request.path}${q} → ${ex.response.status}  ${ex.latencyMs}ms`);
         },
     onError: (err, method, url) => console.error(`  ${method} ${url} → upstream error: ${err.message} (not recorded)`),
+  }).catch((err: unknown) => {
+    if (err instanceof TapeExistsError) {
+      throw new UsageError(`tape "${values.tape}" already exists (${path}). Use --append to add to it or --overwrite to replace it.`);
+    }
+    throw err;
   });
 
   console.log(`gerra recording ${target} → ${path}`);

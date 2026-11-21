@@ -8,14 +8,26 @@ const ID_SEGMENT = [
 
 /**
  * Group key for an exchange: method plus path with id-like segments collapsed to `:id`.
- * `GET /products/42?x=1` → `GET /products/:id`.
+ * `GET /products/42?x=1` → `GET /products/:id`. Segments are compared percent-decoded, so
+ * `/product%73/%34%32` is the same route; malformed escapes are kept as written.
  */
 export function routeOf(method: string, path: string): string {
   const normalized = path
     .split("/")
+    .map(decodeSegment)
     .map((seg) => (seg !== "" && ID_SEGMENT.some((re) => re.test(seg)) ? ":id" : seg))
     .join("/");
   return `${method.toUpperCase()} ${normalized || "/"}`;
+}
+
+function decodeSegment(seg: string): string {
+  if (!seg.includes("%")) return seg;
+  try {
+    // An encoded slash stays encoded: it's part of the segment, not a separator.
+    return decodeURIComponent(seg).replaceAll("/", "%2F");
+  } catch {
+    return seg;
+  }
 }
 
 export interface RouteSummary {

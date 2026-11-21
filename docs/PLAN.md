@@ -102,6 +102,6 @@ Goal for the first public launch (end of M7): port a popular open-source Node se
 - 2026-11-21 — The port was done by Claude Code following `skills/gerra-rewrite/SKILL.md` with the CLI (`replay --route`, `diff --exchange`), not via the MCP server, which wasn't connected to that session. Three tapes: 2000 reads (a weighted frontend mix), 28 writes, 61 edge cases. They're regenerated deterministically by `traffic.mjs`, not committed (the reads tape is 14.6 MB).
 - 2026-11-21 — The parity claim covers status, `content-type`, `content-length`, the CORS headers and the body (`examples/json-server/gerra.config.json`). Comparing `content-length` makes it byte-level, not just structurally equal JSON. The only ignore rule is `$.id` on created items, which json-server generates randomly. One difference stays open: Go's `net/http` answers a malformed `%zz` path escape itself, before any handler runs.
 - 2026-11-21 — Benchmark numbers (Apple M2, everything on one machine, recorded GET mix, 32 connections, median of 3 × 10 s): json-server 1,963 req/s, p50 15.1 ms, 257 MB. The Go port does 12,588 req/s (6.4×), p50 1.1 ms, 30 MB, or 4,153 req/s (2.1×) with `GOMAXPROCS=1`. Report both: Node uses one core.
-- 2026-11-21 — Two gerra gaps the demo exposed, for later:
-  - `record` appends to an existing tape, so re-recording silently mixes runs. It could refuse, or take `--overwrite`.
-  - Routes in reports use the raw path, so `GET /po%73ts/%32` isn't grouped under `GET /posts/:id`.
+- 2026-11-21 — Two gerra gaps the demo exposed, now fixed:
+  - `record` refuses a tape that already has exchanges unless given `--append` or `--overwrite` (exit 2 with a message). It used to append silently, so re-recording mixed runs together.
+  - `routeOf` percent-decodes path segments before grouping, so `GET /po%73ts/%32` is `GET /posts/:id`. Malformed escapes stay as written, and an encoded `/` stays `%2F`.

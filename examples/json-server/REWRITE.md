@@ -16,7 +16,7 @@ Kept as the `gerra-rewrite` skill asks: every route gerra recorded, its status, 
 | Route (as `gerra tapes` lists it) | reads | writes | edges | Status | Notes |
 | --- | ---: | ---: | ---: | --- | --- |
 | GET /posts | 1093 | 2 | 22 | passing | filters, operators, `_where`, sort, pagination, `_embed` |
-| GET /posts/:id | 433 | 2 | 3 | passing | `_embed` one and many |
+| GET /posts/:id | 433 | 2 | 4 | passing | `_embed` one and many, escaped path (`/po%73ts/%32`) |
 | GET /comments | 175 | | 4 | passing | |
 | GET /users | 87 | | 3 | passing | nested-field filter and sort |
 | GET /users/:id | 57 | 1 | 1 | passing | |
@@ -25,7 +25,7 @@ Kept as the `gerra-rewrite` skill asks: every route gerra recorded, its status, 
 | OPTIONS /posts, /, /posts/:id | 25 | | 2 | passing | see "Copied quirks" |
 | HEAD /posts, /posts/:id, /comments, /users, /users/:id | 35 | | | passing | no `Content-Length`, like Node |
 | GET /profile/:id, /posts/:id/comments, /nope, //posts | 18 | | 1 | passing | JSON and plain-text 404s |
-| GET /posts/, /posts/:id/, /po%73ts/%32, /posts/%E0%A4 | | | 4 | passing | trailing slash, escaped path, bad UTF-8 escape (400) |
+| GET /posts/, /posts/:id/, /posts/%E0%A4 | | | 3 | passing | trailing slash, bad UTF-8 escape (400) |
 | POST /posts, /comments | | 5 | 6 | passing | `$.id` ignored: json-server generates a random id per call |
 | PUT, PATCH, DELETE on items, `/profile`, `/posts` | | 13 | 5 | passing | |
 | POST /, /nope, /profile, /posts/:id; PURGE /, /posts | | 3 | 3 | passing | |
