@@ -1,5 +1,26 @@
 # DRAFT: launch post (not published)
 
+## X post (attach `docs/launch/gerra-launch.mp4`)
+
+> Introducing gerra
+>
+> Rewrite your backend with AI and prove nothing broke:
+>
+> 1. Record real traffic
+> 2. Replay it against the rewrite
+> 3. Fix every difference with your coding agent
+>
+> Ported json-server to Go: 2088/2089 requests identical, 6.4× faster.
+>
+> CLI or MCP. Fully open source.
+
+Reply to it with the links:
+
+> npx @gerra/cli
+> github.com/bottercode/gerra
+
+## Long version (blog, Hacker News)
+
 ## An AI ported json-server to Go. Here's the proof it answers the same.
 
 Rewriting a backend with AI is easy now. Knowing that the rewrite behaves the same is the hard part. A new service passing its new tests isn't evidence; the old service's behavior on real traffic is.
@@ -28,8 +49,10 @@ To test it, we had Claude Code port [json-server](https://github.com/typicode/js
 
 **Try it**
 
+`npx @gerra/cli --help`, or reproduce the demo:
+
 ```bash
-git clone … && cd gerra && pnpm install && pnpm build
+git clone https://github.com/bottercode/gerra && cd gerra && pnpm install && pnpm build
 cd examples/json-server && ./verify.sh && ./bench.sh
 ```
 
@@ -39,7 +62,6 @@ gerra is MIT-licensed and has no runtime dependencies. Next up: SDKs that captur
 
 ---
 Before publishing:
-- fill in the repo URL;
-- add the GIF;
+- embed `docs/demo.gif` (or upload it with the post);
 - re-run `bench.sh` on the machine you quote;
 - decide whether to say "Claude Code" or "an AI agent".

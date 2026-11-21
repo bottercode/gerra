@@ -1,0 +1,148 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: "SFMono"; src: local("SF Mono"), url("file:///System/Library/Fonts/SFNSMono.ttf"); }
+  html, body { margin: 0; background: #0a0a0a; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0a0a0a;
+           font-family: "SFMono", Menlo, monospace; color: #e5e5e5; }
+  .abs { position: absolute; white-space: pre; }
+  .box { position: absolute; width: 450px; height: 220px; border-radius: 28px; border: 3px solid #404040;
+         display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; }
+  .big { font-size: 72px; }
+  .small { font-size: 36px; color: #737373; margin-top: 10px; }
+  .dot { position: absolute; width: 16px; height: 16px; border-radius: 8px; background: #e5e5e5; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+// Every frame is a pure function of t (seconds into the 15 s loop).
+const RED = "#ef4444", GREEN = "#22c55e", TEXT = "#e5e5e5", DIM = "#737373", EDGE = "#404040";
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const ease = (v) => 1 - Math.pow(1 - clamp(v), 3);
+const inOut = (v) => { const x = clamp(v); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const mix = (a, b, k) => a + (b - a) * k;
+const hex = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+const mixColor = (a, b, k) => { const x = hex(a), y = hex(b); return `rgb(${x.map((v, i) => Math.round(mix(v, y[i], k))).join(",")})`; };
+const band = (t, a, b, f = 0.35) => Math.min(ease((t - a) / f), 1 - ease((t - (b - f)) / f));
+
+function scene(t) {
+  const out = [];
+  const fadeAll = 1 - ease((t - 15.2) / 0.4);          // dark frame before the loop restarts
+
+  // Headline: one line that changes in place. Centred big at first, then it settles at the top.
+  const lines = [
+    { a: 0.15, b: 1.75, text: "We had AI rewrite it from Node to Go." },
+    { a: 1.6, b: 3.2, text: "Does it still give the same answers?" },
+    { a: 3.1, b: 6.7, text: "gerra replays real traffic against the rewrite." },
+    { a: 6.6, b: 10.1, text: "It finds every answer that changed." },
+    { a: 10.0, b: 12.9, text: "Fix it until every answer matches.", color: GREEN },
+  ];
+  const settle = inOut((t - 2.9) / 0.7);
+  const headTop = mix(480, 110, settle), headSize = mix(68, 52, settle);
+  lines.forEach((l) => {
+    const o = band(t, l.a, l.b);
+    if (o <= 0) return;
+    const y = (1 - ease((t - l.a) / 0.4)) * 20;
+    out.push(`<div class="abs" style="left:0;width:1920px;text-align:center;top:${headTop}px;font-size:${headSize}px;opacity:${o};transform:translateY(${y}px);color:${l.color || TEXT}">${l.text}</div>`);
+  });
+
+  // The picture: old service → tape of real requests → AI rewrite. On screen from 3 s to 12.9 s.
+  const scene = ease((t - 3.0) / 0.5) * (1 - ease((t - 12.9) / 0.5));
+  if (scene > 0) {
+    const fail = ease((t - 6.7) / 0.4) * (1 - inOut((t - 10.0) / 0.8));
+    const pass = inOut((t - 10.0) / 0.8);
+    const newEdge = pass > 0 ? mixColor(EDGE, GREEN, pass) : mixColor(EDGE, RED, fail);
+    const boxes = [
+      { x: 150, label: "Node", sub: "json-server", edge: EDGE, at: 3.0 },
+      { x: 735, label: "2000", sub: "recorded requests", edge: EDGE, at: 3.9 },
+      { x: 1320, label: "Go", sub: "AI rewrite", edge: newEdge, at: 4.8 },
+    ];
+    boxes.forEach((b) => {
+      const a = ease((t - b.at) / 0.45) * scene;
+      out.push(`<div class="box" style="left:${b.x}px;top:400px;opacity:${a};transform:scale(${mix(0.94, 1, a)});border-color:${b.edge}">` +
+        `<div class="big">${b.label}</div><div class="small">${b.sub}</div></div>`);
+    });
+    // Requests flow: recorded from the old service, then replayed into the rewrite.
+    for (let i = 0; i < 9; i++) {
+      const legs = [
+        { from: 600, to: 735, start: 3.3 + i * 0.13 },
+        { from: 1185, to: 1320, start: 4.9 + i * 0.13 },
+      ];
+      legs.forEach((leg) => {
+        const k = clamp((t - leg.start) / 0.55);
+        if (k <= 0 || k >= 1) return;
+        const o = Math.sin(k * Math.PI) * scene;
+        out.push(`<div class="dot" style="left:${mix(leg.from, leg.to, k) - 8}px;top:${502 + ((i % 3) - 1) * 26}px;opacity:${o}"></div>`);
+      });
+    }
+    // Arrows between boxes (direction of the flow).
+    [[636, 3.3], [1221, 4.9]].forEach(([x, at]) => {
+      const a = ease((t - at) / 0.4) * scene;
+      out.push(`<div class="abs" style="left:${x}px;top:478px;font-size:56px;color:${DIM};opacity:${a}">→</div>`);
+    });
+
+    // The result under the boxes: a counter, and the difference it found.
+    const resA = ease((t - 5.9) / 0.4) * scene;
+    const counting = inOut((t - 5.9) / 1.0);
+    const identical = Math.round(mix(0, 1975, counting) + 25 * pass);
+    const counterColor = pass > 0.5 ? GREEN : (counting >= 1 ? RED : TEXT);
+    out.push(`<div class="abs" style="left:0;width:1920px;text-align:center;top:700px;font-size:64px;opacity:${resA}">` +
+      `<span style="color:${counterColor}">${identical} / 2000</span><span style="color:${DIM}"> answers identical</span></div>`);
+    const diffA = fail * scene;
+    out.push(`<div class="abs" style="left:0;width:1920px;text-align:center;top:810px;font-size:46px;color:${RED};opacity:${diffA}">` +
+      `✗ OPTIONS /posts: header content-length "0" → missing</div>`);
+    const fixedA = pass * scene;
+    out.push(`<div class="abs" style="left:0;width:1920px;text-align:center;top:810px;font-size:46px;color:${GREEN};opacity:${fixedA}">` +
+      `✓ fixed, and 6.4× faster than the original</div>`);
+  }
+
+  // Call to action.
+  const ctaA = ease((t - 13.45) / 0.5);
+  if (ctaA > 0) {
+    out.push(`<div class="abs" style="left:0;width:1920px;text-align:center;top:380px;font-size:96px;opacity:${ctaA};transform:translateY(${(1 - ctaA) * 24}px)">` +
+      `<span style="color:${DIM}">$ </span>npx @gerra/cli</div>`);
+    out.push(`<div class="abs" style="left:0;width:1920px;text-align:center;top:560px;font-size:52px;color:${DIM};opacity:${ease((t - 13.85) / 0.5)}">` +
+      `Rewrite with AI. Prove nothing broke.</div>`);
+  }
+
+  return `<div style="opacity:${fadeAll}">${out.join("")}</div>`;
+}
+
+// The real project first, then the story (shifted 2 s later).
+function render(t) {
+  const intro = band(t, 0.1, 2.25, 0.35);
+  let html = "";
+  if (intro > 0) {
+    const y = (1 - ease((t - 0.1) / 0.5)) * 24;
+    html += `<div class="abs" style="left:0;width:1920px;text-align:center;top:400px;font-size:132px;opacity:${intro};transform:translateY(${y}px)">json-server</div>`;
+    html += `<div class="abs" style="left:0;width:1920px;text-align:center;top:580px;font-size:48px;color:${DIM};opacity:${band(t, 0.45, 2.25, 0.35)}">★ 75.8K on GitHub · 440K downloads a week</div>`;
+  }
+  // The real run: clone it, start it from source, record its traffic.
+  const steps = [
+    { at: 2.25, cmd: "git clone github.com/typicode/json-server", done: "v1.0.0-beta.15" },
+    { at: 3.45, cmd: "node src/bin.ts", done: "running on :3000" },
+    { at: 4.4, cmd: "npx @gerra/cli record --target :3000", done: "2000 requests recorded" },
+  ];
+  const stepsOut = 1 - ease((t - 6.3) / 0.4);
+  if (t >= 2.1 && stepsOut > 0) {
+    steps.forEach((s, i) => {
+      const a = ease((t - s.at) / 0.3) * stepsOut;
+      if (a <= 0) return;
+      const typed = s.cmd.slice(0, Math.floor(clamp((t - s.at) / 0.6) * s.cmd.length));
+      const doneA = ease((t - (s.at + 0.75)) / 0.3);
+      const top = 330 + i * 140;
+      html += `<div class="abs" style="left:230px;top:${top}px;font-size:54px;opacity:${a}"><span style="color:${DIM}">$ </span>${typed}</div>`;
+      html += `<div class="abs" style="left:290px;top:${top + 66}px;font-size:40px;color:${GREEN};opacity:${doneA * stepsOut}">✓ ${s.done}</div>`;
+    });
+  }
+  if (t >= 6.8) html += scene(t - 6.8);
+  document.getElementById("stage").innerHTML = html;
+}
+window.render = render;
+render(0);
+</script>
+</body>
+</html>
