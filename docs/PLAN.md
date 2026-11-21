@@ -50,6 +50,7 @@ Goal for the first public launch (end of M7): port a popular open-source Node se
 ### M7 — launch demo
 - [x] Pick a popular OSS Node service, record realistic traffic, port to Go with the agent loop (`examples/json-server`: json-server 1.0.0-beta.15 → Go, 2088 of 2089 recorded exchanges identical)
 - [x] Benchmark + parity numbers (`examples/json-server/bench.sh`, `verify.sh`), README
+- [ ] Publish to npm: `gerra`, `@gerra/core`, `@gerra/mcp` 0.1.0 are packed and tested from tarballs; publishing waits on the name decision and an npm login
 - [ ] GIF of the record → replay → diff loop on the demo
 - [ ] Launch post (draft in `docs/launch-post.md`); publish
 
@@ -105,3 +106,4 @@ Goal for the first public launch (end of M7): port a popular open-source Node se
 - 2026-11-21 — Two gerra gaps the demo exposed, now fixed:
   - `record` refuses a tape that already has exchanges unless given `--append` or `--overwrite` (exit 2 with a message). It used to append silently, so re-recording mixed runs together.
   - `routeOf` percent-decodes path segments before grouping, so `GET /po%73ts/%32` is `GET /posts/:id`. Malformed escapes stay as written, and an encoded `/` stays `%2F`.
+- 2026-11-21 — npm packaging: three packages at 0.1.0, `gerra` (CLI + `gerra/api`), `@gerra/core` and `@gerra/mcp` (bin `gerra-mcp`), each shipping only `dist` without source maps, plus README and LICENSE. `pnpm pack` turns `workspace:*` into real versions. Checked by installing the three tarballs into an empty project: record, tapes, replay and the MCP server all work. The scoped names need an npm organization called `gerra`.

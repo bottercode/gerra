@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
 import {
   DEFAULT_COMPARED_HEADERS,
@@ -745,7 +746,8 @@ async function main(argv: string[]): Promise<number> {
     return 0;
   }
   if (command === "-v" || command === "--version") {
-    console.log(`gerra 0.0.0 (tape format v${TAPE_VERSION})`);
+    const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
+    console.log(`gerra ${version} (tape format v${TAPE_VERSION})`);
     return 0;
   }
   try {

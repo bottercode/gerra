@@ -1,9 +1,26 @@
 {
   "name": "@gerra/mcp",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "MCP server that gives coding agents gerra's tapes, replays and diffs.",
-  "type": "module",
+  "keywords": [
+    "gerra",
+    "mcp",
+    "model-context-protocol",
+    "agent",
+    "rewrite"
+  ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bottercode/gerra.git",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://github.com/bottercode/gerra#readme",
+  "bugs": "https://github.com/bottercode/gerra/issues",
+  "engines": {
+    "node": ">=24"
+  },
+  "type": "module",
   "bin": {
     "gerra-mcp": "dist/index.js"
   },
@@ -16,5 +33,14 @@
   "dependencies": {
     "@gerra/core": "workspace:*",
     "gerra": "workspace:*"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
   }
 }

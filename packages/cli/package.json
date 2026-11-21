@@ -1,9 +1,31 @@
 {
   "name": "gerra",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Rewrite your backend with AI, and prove nothing broke.",
-  "type": "module",
+  "keywords": [
+    "rewrite",
+    "migration",
+    "record",
+    "replay",
+    "shadow-traffic",
+    "canary",
+    "diff",
+    "ai",
+    "http",
+    "proxy"
+  ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bottercode/gerra.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/bottercode/gerra#readme",
+  "bugs": "https://github.com/bottercode/gerra/issues",
+  "engines": {
+    "node": ">=24"
+  },
+  "type": "module",
   "bin": {
     "gerra": "dist/index.js"
   },
@@ -21,5 +43,11 @@
     },
     "./package.json": "./package.json"
   },
-  "types": "dist/api.d.ts"
+  "types": "dist/api.d.ts",
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "README.md",
+    "LICENSE"
+  ]
 }
