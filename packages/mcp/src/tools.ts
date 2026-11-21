@@ -1,4 +1,4 @@
-import type { Exchange, RecordedBody } from "gerra-core";
+import type { Exchange, RecordedBody } from "@gerra/core";
 import {
   compareExchange,
   exitCodeFor,
@@ -10,7 +10,7 @@ import {
   runReplay,
   tapesSummary,
   type Dirs,
-} from "gerra/api";
+} from "@gerra/cli/api";
 import { ToolError, type Tool } from "./server.js";
 
 function str(args: Record<string, unknown>, key: string, required: true): string;

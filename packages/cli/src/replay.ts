@@ -11,7 +11,7 @@ import {
   type Exchange,
   type RecordedResponse,
   type ReplayResult,
-} from "gerra-core";
+} from "@gerra/core";
 
 /** Methods that are safe to repeat against a service (RFC 9110 §9.2.1). Others need an explicit opt-in. */
 export const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);

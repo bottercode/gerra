@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { serializeExchange, type Exchange } from "gerra-core";
+import { serializeExchange, type Exchange } from "@gerra/core";
 import { UsageError, compareExchange, getExchanges, runDiff, runReplay } from "./api.js";
 import { loadNoise } from "./noise.js";
 import { formatExchangeComparison } from "./report.js";

@@ -30,8 +30,8 @@ pnpm monorepo, TypeScript, Node ≥ 24, ESM only.
 ```
 packages/
   core/   tape format, diff + normalization engine, report model (no I/O-heavy deps)
-  cli/    `gerra` binary: record | replay | diff | shadow | cutover (uses core); exports `gerra/api`
-  mcp/    MCP server for agents (uses cli's `gerra/api`)
+  cli/    `gerra` binary: record | replay | diff | shadow | cutover (uses core); exports `@gerra/cli/api`
+  mcp/    MCP server for agents (uses `@gerra/cli/api`)
 skills/
   gerra-rewrite/SKILL.md   agent workflow: rewrite route by route until gerra replay passes
 examples/

@@ -1,5 +1,5 @@
 {
-  "name": "gerra-mcp",
+  "name": "@gerra/mcp",
   "version": "0.1.0",
   "description": "MCP server that gives coding agents gerra's tapes, replays and diffs.",
   "keywords": [
@@ -31,8 +31,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "gerra-core": "workspace:*",
-    "gerra": "workspace:*"
+    "@gerra/core": "workspace:*",
+    "@gerra/cli": "workspace:*"
   },
   "files": [
     "dist",

@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { buildReport, learnNoise, rulesFor, type Exchange } from "gerra-core";
+import { buildReport, learnNoise, rulesFor, type Exchange } from "@gerra/core";
 import { loadConfig } from "./config.js";
 import { loadNoise, noisePath, saveNoise } from "./noise.js";
 import { replayTape } from "./replay.js";

@@ -14,7 +14,7 @@ import {
   type LatencyStats,
   type Mismatch,
   type RecordedResponse,
-} from "gerra-core";
+} from "@gerra/core";
 import { startProxy } from "./proxy.js";
 import { isUnsafeAllowed, makeTarget, requestHeaders, send } from "./replay.js";
 

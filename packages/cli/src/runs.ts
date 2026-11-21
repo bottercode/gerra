@@ -1,6 +1,6 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { parseRun, serializeRun, type Run } from "gerra-core";
+import { parseRun, serializeRun, type Run } from "@gerra/core";
 import { assertTapeName } from "./tapes.js";
 
 export const DEFAULT_RUNS_DIR = join(".gerra", "runs");

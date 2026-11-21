@@ -1,7 +1,7 @@
 import { createWriteStream, mkdirSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 import { finished } from "node:stream/promises";
-import { DEFAULT_MASKED_HEADERS, maskExchange, serializeExchange, type Exchange } from "gerra-core";
+import { DEFAULT_MASKED_HEADERS, maskExchange, serializeExchange, type Exchange } from "@gerra/core";
 import { DEFAULT_MAX_BODY_BYTES, startProxy } from "./proxy.js";
 
 export { DEFAULT_MAX_BODY_BYTES };

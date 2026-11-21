@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { NoiseProfile } from "gerra-core";
+import type { NoiseProfile } from "@gerra/core";
 import { assertTapeName } from "./tapes.js";
 
 export const DEFAULT_NOISE_DIR = join(".gerra", "noise");

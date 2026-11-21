@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { parseConfig, type GerraConfig } from "gerra-core";
+import { parseConfig, type GerraConfig } from "@gerra/core";
 
 export const DEFAULT_CONFIG_FILE = "gerra.config.json";
 

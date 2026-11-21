@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { MASK, RUN_VERSION, buildReport, type Exchange } from "gerra-core";
+import { MASK, RUN_VERSION, buildReport, type Exchange } from "@gerra/core";
 import { isUnsafeAllowed, looksLocal, replayTape } from "./replay.js";
 import { exitCodeFor, formatReport } from "./report.js";
 import { latestRunPath, loadRun, saveRun } from "./runs.js";

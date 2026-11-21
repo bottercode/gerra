@@ -1,5 +1,5 @@
 {
-  "name": "gerra",
+  "name": "@gerra/cli",
   "version": "0.1.0",
   "description": "Rewrite your backend with AI, and prove nothing broke.",
   "keywords": [
@@ -34,7 +34,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "gerra-core": "workspace:*"
+    "@gerra/core": "workspace:*"
   },
   "exports": {
     "./api": {
@@ -49,5 +49,8 @@
     "!dist/**/*.map",
     "README.md",
     "LICENSE"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }

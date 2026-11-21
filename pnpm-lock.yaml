@@ -32,7 +32,7 @@ importers:
 
   packages/cli:
     dependencies:
-      gerra-core:
+      '@gerra/core':
         specifier: workspace:*
         version: link:../core
 
@@ -40,10 +40,10 @@ importers:
 
   packages/mcp:
     dependencies:
-      gerra:
+      '@gerra/cli':
         specifier: workspace:*
         version: link:../cli
-      gerra-core:
+      '@gerra/core':
         specifier: workspace:*
         version: link:../core
 
