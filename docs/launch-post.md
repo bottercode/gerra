@@ -1,4 +1,8 @@
-# DRAFT: launch plan and posts (not published)
+# Launch plan and posts
+
+**Posted 2026-11-22:** post A with `gerra-launch.mp4`, and its reply: https://x.com/botter_code/status/2124505812324454674
+
+**Never put `@gerra/…` in post text.** X turns it into a mention of @gerra, an unrelated person's account. Package names stay in the videos and on GitHub; in text, write "gerra on npm" or link the repo.
 
 ## What works on X (researched 2026-11-22)
 
@@ -47,8 +51,8 @@ Decided: the posts name Claude. It's accurate (Claude did both ports), people se
 > We had Claude port json-server to Go: 2088/2089 requests identical, 6.4× faster
 >
 > Fully open source
->
-> npx @gerra/cli
+
+(Posted without the `npx @gerra/cli` line, because of the mention problem above; the video shows the command.)
 
 First reply:
 
@@ -62,7 +66,7 @@ First reply:
 >
 > I open-sourced a tool for that: record real traffic, replay it against the rewrite, see every difference, then cut over 1% → 100% with auto-rollback.
 >
-> npx @gerra/cli
+> github.com/bottercode/gerra
 
 ## C. Follow-up: side effects (attach `docs/launch/gerra-effects.mp4`)
 
@@ -74,7 +78,7 @@ First reply:
 >
 > gerra now checks what your service did (outbound calls, queries), not just what it answered
 >
-> node --import @gerra/sdk-node/register server.js
+> One line in Node, a header in any other language
 
 ## D. Follow-up: the Python → Node port (attach `docs/launch/gerra-rounding.mp4`)
 
@@ -86,8 +90,6 @@ First reply:
 > JavaScript: Math.round(12.5) = 13
 >
 > Your tests won't catch this. Real traffic does.
->
-> npx @gerra/cli
 
 ## E. Show HN
 
