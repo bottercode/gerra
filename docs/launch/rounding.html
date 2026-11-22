@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: "SFMono"; src: local("SF Mono"), url("file:///System/Library/Fonts/SFNSMono.ttf"); }
+  html, body { margin: 0; background: #0a0a0a; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0a0a0a;
+           font-family: "SFMono", Menlo, monospace; color: #e5e5e5; }
+  .abs { position: absolute; white-space: pre; }
+  .c { left: 0; width: 1920px; text-align: center; }
+  .panel { position: absolute; border: 3px solid #404040; border-radius: 28px; box-sizing: border-box; padding: 34px 40px; }
+  .label { font-size: 30px; color: #737373; margin-bottom: 18px; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+const RED = "#ef4444", GREEN = "#22c55e", TEXT = "#e5e5e5", DIM = "#737373", EDGE = "#404040";
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const ease = (v) => 1 - Math.pow(1 - clamp(v), 3);
+const inOut = (v) => { const x = clamp(v); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const mix = (a, b, k) => a + (b - a) * k;
+const hex = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+const mixColor = (a, b, k) => { const x = hex(a), y = hex(b); return `rgb(${x.map((v, i) => Math.round(mix(v, y[i], k))).join(",")})`; };
+const band = (t, a, b, f = 0.35) => Math.min(ease((t - a) / f), 1 - ease((t - (b - f)) / f));
+const rise = (t, a) => (1 - ease((t - a) / 0.45)) * 22;
+// Rounding: Python round() vs JS Math.round(). 12 s loop.
+function render(t) {
+  const fadeAll = 1 - ease((t - 11.5) / 0.4);
+  let h = "";
+  const settle = inOut((t - 1.6) / 0.7);
+  const top = mix(470, 90, settle), size = mix(66, 54, settle);
+  const lines = [
+    { a: 0.15, b: 6.6, text: "We had Claude port a Python API to Node." },
+    { a: 6.5, b: 9.4, text: "Your tests won't catch this. Real traffic does.", color: GREEN },
+  ];
+  for (const l of lines) {
+    const o = band(t, l.a, l.b);
+    if (o > 0) h += `<div class="abs c" style="top:${top}px;font-size:${size}px;opacity:${o};transform:translateY(${rise(t, l.a)}px);color:${l.color || TEXT}">${l.text}</div>`;
+  }
+  const out = 1 - ease((t - 9.3) / 0.45);
+  // Replay result counting up.
+  const cA = ease((t - 2.0) / 0.4) * out;
+  if (cA > 0) {
+    const n = Math.round(mix(0, 23, inOut((t - 2.0) / 1.0)));
+    const color = t > 3.05 ? RED : TEXT;
+    h += `<div class="abs c" style="top:250px;font-size:64px;opacity:${cA}"><span style="color:${color}">${n} / 25</span><span style="color:${DIM}"> responses identical</span></div>`;
+    h += `<div class="abs c" style="top:350px;font-size:40px;color:${RED};opacity:${ease((t - 3.2) / 0.4) * out}">✗ GET /stats   body $.percent_done   12 → 13</div>`;
+  }
+  // Why: the two rounding rules side by side.
+  const rows = [
+    { at: 4.0, lang: "Python", code: "round(12.5)", val: "12", color: TEXT },
+    { at: 4.7, lang: "JavaScript", code: "Math.round(12.5)", val: "13", color: RED },
+  ];
+  rows.forEach((r, i) => {
+    const a = ease((t - r.at) / 0.4) * out;
+    if (a <= 0) return;
+    const y = 520 + i * 130;
+    h += `<div class="abs" style="left:330px;top:${y}px;font-size:66px;opacity:${a};transform:translateY(${rise(t, r.at)}px)"><span style="color:${DIM}">${r.lang.padEnd(11)}</span>${r.code.padEnd(17)}<span style="color:${DIM}">→ </span><span style="color:${r.color}">${r.val}</span></div>`;
+  });
+  h += `<div class="abs c" style="top:820px;font-size:40px;color:${DIM};opacity:${ease((t - 5.5) / 0.5) * out}">Python rounds halves to even. JavaScript rounds them up.</div>`;
+  const cta = ease((t - 9.6) / 0.5);
+  if (cta > 0) {
+    h += `<div class="abs c" style="top:380px;font-size:96px;opacity:${cta};transform:translateY(${(1 - cta) * 24}px)"><span style="color:${DIM}">$ </span>npx @gerra/cli</div>`;
+    h += `<div class="abs c" style="top:560px;font-size:52px;color:${DIM};opacity:${ease((t - 10.0) / 0.5)}">Rewrite with Claude. Prove nothing broke.</div>`;
+  }
+  document.getElementById("stage").innerHTML = `<div style="opacity:${fadeAll}">${h}</div>`;
+}
+window.render = render;
+render(0);
+</script>
+</body>
+</html>

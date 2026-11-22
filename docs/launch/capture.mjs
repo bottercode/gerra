@@ -31,7 +31,7 @@ const send = (method, params = {}) => new Promise((resolve) => { const n = ++id;
 
 await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
 await send("Page.enable");
-await send("Page.navigate", { url: "file://" + join(import.meta.dirname, "index.html") });
+await send("Page.navigate", { url: "file://" + join(import.meta.dirname, process.env.PAGE ?? "index.html") });
 await new Promise((r) => setTimeout(r, 1200));
 
 const times = only ? only.split(",").map(Number) : Array.from({ length: Math.round(Number(fps) * Number(seconds)) }, (_, i) => i / Number(fps));
